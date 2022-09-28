@@ -19,6 +19,7 @@ ffreq_hp    ds.l    256 ; High-pass resonance frequency table
 * out:
 *   fp0 = lp
 calcResonanceLp:
+    ; 227.755 - 1.7635 * f - 0.0176385 * f * f + 0.00333484 * f * f * f;
     fmove   fp0,fp1 
     fmul    fp1,fp1 * f^2
     fmove   fp1,fp2
@@ -36,6 +37,7 @@ calcResonanceLp:
 * out:
 *   fp0 = hp
 calcResonanceHp:
+    ; 366.374 - 14.0052 * f + 0.603212 * f * f - 0.000880196 * f * f * f;
     fmove   fp0,fp1 
     fmul    fp1,fp1 * f^2
     fmove   fp1,fp2
@@ -164,7 +166,7 @@ calcFilter:
     fmul    fp3,fp3  * arg^2
     fmul.s  #-1.2,fp2
     fmul.s  #1.2,fp3
-    fadd    fp4,fp3
+    fadd    fp4,fp2
     fadd    fp3,fp2
     fadd.s  #0.55,fp2
     * fp2 = g2
@@ -217,9 +219,9 @@ calcFilter:
     fadd.s  #0.99,fp1
     bra     .noStab
 .4
-    fadd.s   #0.99,fp2
-    fneg    fp2
     fmove   fp2,fp1
+    fadd.s   #0.99,fp1
+    fneg    fp1
 .noStab
 
 	; Calculate roots (filter characteristic) and input attenuation
@@ -304,8 +306,9 @@ calcFilter:
     fadd   fp2,fp4
     fmove  fp1,fp5
     fmul   fp5,fp5
-    fsub    fp5,fp4
-    fadd.s  #1.0,fp4
+    fsub   fp5,fp4
+    fadd.s #1.0,fp4
+    fsqrt  fp4
     * fp4 = c
     
     fmove   fp2,fp5
@@ -333,8 +336,8 @@ calcFilter:
     fmul.s  #-2.0,fp6
 
     ;- (4.0+2.0*c)*g2 
-    fmove  fp4,fp7
-    fmul.s  #2.0,fp7
+    fmove   fp4,fp7
+    fadd    fp4,fp7
     fadd.s  #4.0,fp7
     fmul    fp2,fp7
     fsub    fp7,fp6

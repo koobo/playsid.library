@@ -3925,7 +3925,7 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 	move.l	psb_Chan3(a6),a2
 	ror.b	#1,d6
 	smi		ch_FilterEnabled(a2)
-	ror.b	#1,d6
+	ror.b	#1,d6 * skip bit #3
 	and.b	#%111,d6
 	cmp.b	psb_FilterResonance(a6),d6
 	beq.b	.sameRes
@@ -3947,7 +3947,7 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 	movem.l	d6/d7/a6,-(sp)
 	move.l	_PlaySidBase,a6
 
-	move	d6,d7
+	move.b	d6,d7
 	lsr.b	#4,d7
 	and.b	#%111,d7
 	cmp.b	psb_FilterType(a6),d7
