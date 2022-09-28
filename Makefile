@@ -1,9 +1,10 @@
+INCLUDE ?= -I $(VBCC)/m68k-amigaos/ndk-include/
 VBCC ?= /opt/amiga
 VASM ?= $(VBCC)/bin/vasmm68k_mot
-VASM_FLAGS := -Fhunkexe -kick1hunks -quiet -m68000 -nosym -showcrit -no-opt -I $(VBCC)/m68k-amigaos/ndk-include/
+VASM_FLAGS := -Fhunkexe -kick1hunks -quiet -m68030 -m68881 -nosym -showcrit -no-opt $(INCLUDE)
 
-SOURCE   := playsid.asm
-INCLUDES := playsid_libdefs.i external.asm
+SOURCE   := playsid.asm 
+INCLUDES := playsid_libdefs.i external.asm filter.s
 
 TARGET   := playsid.library
 LISTFILE := playsid.txt
