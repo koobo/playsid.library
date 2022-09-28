@@ -425,9 +425,44 @@ calcFilter:
 	;	else
 	;		f_ampl = (1.0 + g1 + g2) / (5.0 - 4.0 * cos(M_PI * arg));
 	;	break;
-    ; TODO
+  
+    fmovecr #0,fp3 * PI
+    fmul    fp0,fp3 
+    fcos    fp3  
+    * fp3 = cos(M_PI * arg)
+    fmove   fp3,fp4
+    fmul.s  #-4.0,fp4
+    fmove.s fp4,psb_FilterD1(a6)
+
+    fmove.s  #4.0,fp4  * could use constant $32
+    fmove.s fp4,psb_FilterD2(a6)
+
+    fcmp.s  #0.5,fp0
+    fblt    .low1
+
+    fmove.s  #1.0,fp4
+    fsub    fp1,fp4
+    fadd    fp2,fp4
+    fmove.s #5.0,fp5
+    fmul.s  #4.0,fp3
+    fadd    fp3,fp5
+    fdiv    fp5,fp4
+    fmul.s  #0.5,fp4
+    fmove.s fp4,psb_FilterAmpl(a6)
     rts
 
+.low2
+    fmove.s  #1.0,fp4
+    fadd    fp1,fp4
+    fadd    fp2,fp4
+    fmove.s #5.0,fp5
+    fmul.s  #4.0,fp3
+    fsub    fp3,fp5
+    fdiv    fp5,fp4
+    fmul.s  #0.5,fp4
+    fmove.s fp4,psb_FilterAmpl(a6)
+    rts
+    
 
 * in:
 *   d0 = sample data address
