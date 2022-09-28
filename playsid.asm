@@ -132,6 +132,7 @@ AutoInitFunction
 		move.l	a2,psb_Chan2(a5)
 		lea	Chan3,a2
 		move.l	a2,psb_Chan3(a5)
+		move.l	#Chan3FilterOut,ch_FilterOutputBuffer(a2)
 		lea	Chan4,a2
 		move.l	a2,psb_Chan4(a5)
 		lea	VolumeTable,a2
@@ -228,6 +229,7 @@ AutoInitFunction
 		bsr	MakeVolume
 		bsr	MakeSIDSamples
 		bsr	MakeEnvelope
+		jsr	initializeFilter
 		move.w	#PM_STOP,psb_PlayMode(a6)
 		move.w	#1,psb_EmulResourceFlag(a6)
 		moveq	#0,d0
@@ -922,12 +924,19 @@ InitSID		movem.l	a2-a3,-(a7)
 		move.l	psb_Chan1(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
+		move.l	#Chan1FilterOut,ch_FilterOutputBuffer(a0)
+	
 		move.l	psb_Chan2(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
+		move.l	#Chan2FilterOut,ch_FilterOutputBuffer(a0)
+
 		move.l	psb_Chan3(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
+		move.l	#Chan3FilterOut,ch_FilterOutputBuffer(a0)
+
+		jsr		resetFilterVariables
 
 		movem.l	(a7)+,a2-a3
 		rts
@@ -935,6 +944,8 @@ InitSID		movem.l	a2-a3,-(a7)
 		clr.b	(a0)+
 		subq.w	#1,d0
 		bne.s	.Clear
+
+	; Should there be an RTS here?
 
 *-----------------------------------------------------------------------*
 InitSIDCont	move.l	psb_Chan1(a6),a0
@@ -953,18 +964,25 @@ InitSIDCont	move.l	psb_Chan1(a6),a0
 		move.l	psb_Chan1(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
+		move.l	#Chan1FilterOut,ch_FilterOutputBuffer(a0)
+	
 		move.l	psb_Chan2(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
+		move.l	#Chan2FilterOut,ch_FilterOutputBuffer(a0)
+	
 		move.l	psb_Chan3(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-
+		move.l	#Chan3FilterOut,ch_FilterOutputBuffer(a0)
+	
 		rts
 .Clear
 		clr.b	(a0)+
 		subq.w	#1,d0
 		bne.s	.Clear
+
+	; Should there be an RTS here?
 
 *-----------------------------------------------------------------------*
 CalcUpdateFreq
@@ -1813,7 +1831,18 @@ StartSNormal
 		move.w	ch_SamPerOld(a0),d1
 		move.w	#INTF_INTEN,INTENA(a4)
 		move.w	d2,INTREQ(a4)
-		movem.l	d0/d1,(a2)
+		
+		tst.b	ch_FilterEnabled(a0)
+		beq.b	.1
+		swap	d1
+		move.l	a1,d4
+		move.l	a0,a1
+		jsr		filterChannel
+		move.l	d4,a1
+		swap	d1
+		move.l	ch_FilterOutputBuffer(a0),d0
+.1
+		movem.l	d0/d1,(a2) * SAMPLE addr, len, period
 		move.w	INTREQR(a4),d4
 		move.w	#INTF_SETCLR+INTF_INTEN,INTENA(a4)
 		and.w	d2,d4
@@ -1832,7 +1861,18 @@ StartSWait
 		move.w	(a7)+,d1
 		move.w	#INTF_INTEN,INTENA(a4)
 		move.w	d2,INTREQ(a4)
-		movem.l	d0/d1,(a2)
+
+		tst.b	ch_FilterEnabled(a0)
+		beq.b	.1
+		swap	d1
+		move.l	a1,d4
+		move.l	a0,a1
+		jsr		filterChannel
+		move.l	d4,a1
+		swap	d1
+		move.l	ch_FilterOutputBuffer(a0),d0
+.1
+		movem.l	d0/d1,(a2) * SAMPLE addr, len, period
 		move.w	INTREQR(a4),d4
 		move.w	#INTF_SETCLR+INTF_INTEN,INTENA(a4)
 		and.w	d2,d4
@@ -3854,23 +3894,78 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 .D416
 	move.w	#$D416,d7
 	move.b	d6,0(a0,d7.l)
+	move.l	a6,-(sp)
+	; Filter frequency bits 3..10
+	move.l	_PlaySidBase,a6
+	cmp.b	psb_FilterFreq(a6),d7
+	beq.b	.sameFr
+	move.b	d7,psb_FilterFreq(a6)
+	;move	#$00f,$dff180
+	jsr		calcFilter
+.sameFr
+	move.l	(sp)+,a6
 	Next_Inst
 .D417
 	move.w	#$D417,d7
 	move.b	d6,0(a0,d7.l)
+	;Filter control. Bits:
+	;Bit #0: 1 = Voice #1 filtered.
+	;Bit #1: 1 = Voice #2 filtered.
+	;Bit #2: 1 = Voice #3 filtered.
+	;Bit #3: 1 = External voice filtered.
+	;Bits #4-#7: Filter resonance.
+	move.l	a6,-(sp)
+	move.l	_PlaySidBase,a6
+	move.l	psb_Chan1(a6),a2
+	ror.b	#1,d6
+	smi		ch_FilterEnabled(a2)
+	move.l	psb_Chan2(a6),a2
+	ror.b	#1,d6
+	smi		ch_FilterEnabled(a2)
+	move.l	psb_Chan3(a6),a2
+	ror.b	#1,d6
+	smi		ch_FilterEnabled(a2)
+	ror.b	#1,d6
+	and.b	#%111,d6
+	cmp.b	psb_FilterResonance(a6),d6
+	beq.b	.sameRes
+	move.b	d6,psb_FilterResonance(a6)
+	jsr		calcFilter
+	;move	#$0ff,$dff180
+.sameRes
+	move.l	(sp)+,a6
 	Next_Inst
 .D418
 	move.w	#$D418,d7
 	move.b	d6,0(a0,d7.l)
-	move.l	a6,d7
+	;Volume and filter modes. Bits:
+	;Bits #0-#3: Volume.
+	;Bit #4: 1 = Low pass filter enabled.
+	;Bit #5: 1 = Band pass filter enabled.
+	;Bit #6: 1 = High pass filter enabled.
+	;Bit #7: 1 = Voice #3 disabled.
+	movem.l	d6/d7/a6,-(sp)
 	move.l	_PlaySidBase,a6
+
+	move	d6,d7
+	lsr.b	#4,d7
+	and.b	#%111,d7
+	cmp.b	psb_FilterType(a6),d7
+	beq.b	.sameFi
+	move.b	d7,psb_FilterType(a6)
+	jsr		resetChannelFilterStates
+	jsr		calcFilter
+	;move	#$f00,$dff180
+.sameFi
+	
 	move.l	psb_Chan4(a6),a2
 	tst.b	ch4_Active(a2)
 	bne.s	.D4181				;Channel Four Active
 	andi.w	#$000f,d6
 	lsl.w	#2,d6
 	move.l	psb_VolumePointers(a6,d6.w),psb_VolumePointer(a6)
-.D4181	move.l	d7,a6
+.D4181	
+	movem.l	(sp)+,d6/d7/a6
 	moveq	#$00,d7
 	Next_Inst
 
@@ -4107,6 +4202,7 @@ timerBServer	CALLEXEC 	Cause		; Ready for Player
 softwServer	move.l	a6,-(a7)		; Play it..
 		move.l	a1,a6
 		bsr	Play64
+		;move	#$a00,$dff180
 		move.l	(a7)+,a6
 		moveq	#0,d0
 		rts
@@ -4120,7 +4216,17 @@ level4H1New
 		move.w	#INTF_AUD0,INTREQ(a0)
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move.l	ch_SamAdrOld(a1),d0
+		move.w	ch_SamLenOld(a1),d1
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),AUD0LC(a0)
+		bra.b	.3
+.2
 		move.l	ch_SamAdrOld(a1),AUD0LC(a0)
+.3
 		move.w	ch_SamLenOld(a1),d0
 		lsr.w	#1,d0
 		move.w	d0,AUD0LEN(a0)
@@ -4139,8 +4245,20 @@ level4H1Sync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextSync
-		move.l	ch_SamAdrOld(a1),AUD0LC(a0)
+
 		move.w	d0,AUD0LEN(a0)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	ch_SamAdrOld(a1),d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),AUD0LC(a0)
+		bra.b	.3
+.2
+		move.l	ch_SamAdrOld(a1),AUD0LC(a0)
+.3
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
@@ -4156,8 +4274,17 @@ level4H1Ring
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRing
-		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),a5
+.2
+		move.l	a5,AUD0LC(a0)
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
@@ -4174,8 +4301,18 @@ level4H1RSync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRSync
-		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
+		
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),a5
+.2
+		move.l	a5,AUD0LC(a0)
+
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
@@ -4195,8 +4332,17 @@ level4H2New
 		move.w	#INTF_AUD1,INTREQ(a0)
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move.l	ch_SamAdrOld(a1),d0
+		move.w	ch_SamLenOld(a1),d1
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),AUD1LC(a0)
+		bra.b	.3
+.2
 		move.l	ch_SamAdrOld(a1),AUD1LC(a0)
-		move.w	ch_SamLenOld(a1),d0
+.3		move.w	ch_SamLenOld(a1),d0
 		lsr.w	#1,d0
 		move.w	d0,AUD1LEN(a0)
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
@@ -4215,8 +4361,19 @@ level4H2Sync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextSync
-		move.l	ch_SamAdrOld(a1),AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	ch_SamAdrOld(a1),d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),AUD1LC(a0)
+		bra.b	.3
+.2
+		move.l	ch_SamAdrOld(a1),AUD1LC(a0)
+.3	
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
@@ -4232,8 +4389,18 @@ level4H2Ring
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRing
-		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),a5
+.2
+		move.l	a5,AUD1LC(a0)
+
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
@@ -4250,8 +4417,18 @@ level4H2RSync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRSync
-		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
+	
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),a5
+.2
+		move.l	a5,AUD1LC(a0)
+	
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
@@ -4271,7 +4448,17 @@ level4H3New
 		move.w	#INTF_AUD2,INTREQ(a0)
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move.l	ch_SamAdrOld(a1),d0
+		move.w	ch_SamLenOld(a1),d1
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),AUD2LC(a0)
+		bra.b	.3
+.2
 		move.l	ch_SamAdrOld(a1),AUD2LC(a0)
+.3
 		move.w	ch_SamLenOld(a1),d0
 		lsr.w	#1,d0
 		move.w	d0,AUD2LEN(a0)
@@ -4290,8 +4477,19 @@ level4H3Sync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextSync
-		move.l	ch_SamAdrOld(a1),AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
+
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	ch_SamAdrOld(a1),d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),AUD2LC(a0)
+		bra.b	.3
+.2
+		move.l	ch_SamAdrOld(a1),AUD2LC(a0)
+.3	
 		move.w	ch_SamPerOld(a1),AUD2PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
@@ -4307,8 +4505,18 @@ level4H3Ring
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRing
-		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
+	
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),a5
+.2
+		move.l	a5,AUD2LC(a0)
+	
 		move.w	ch_SamPerOld(a1),AUD2PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
@@ -4325,8 +4533,18 @@ level4H3RSync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRSync
-		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
+		
+		tst.b	ch_FilterEnabled(a1)
+		beq.b	.2
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBuffer(a1),a5
+.2
+		move.l	a5,AUD2LC(a0)
+
 		move.w	ch_SamPerOld(a1),AUD2PER(a0)
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
@@ -7056,3 +7274,12 @@ _PlaySidBase	ds.l	1
 
 *-----------------------------------------------------------------------*
 		include	external.asm
+		include	filter.s
+
+	section FilterData,bss_c
+
+; TODO how big should these be?
+Chan1FilterOut	ds.b	10240
+Chan2FilterOut	ds.b	10240
+Chan3FilterOut	ds.b	10240
+

@@ -174,6 +174,15 @@ FREE		MACRO
 	UWORD	psb_AudioDevice
 	APTR	psb_AudioIO
 	APTR	psb_AudioMP
+	UBYTE	psb_FilterType ; SID filter type
+	UBYTE	psb_FilterFreq ; SID filter frequency (upper 8 bits)
+	UBYTE	psb_FilterResonance ; SID Filter resonance (0..15)
+	UBYTE   psd_pad1
+	ULONG	psb_FilterAmpl ; IIR filter input attenuation
+	ULONG	psb_FilterD1 ; IIR filter coefficients
+	ULONG	psb_FilterD2 ; IIR filter coefficients
+	ULONG	psb_FilterG1 ; IIR filter coefficients
+	ULONG	psb_FilterG2 ; IIR filter coefficients
 	LABEL	psb_SIZEOF
 
 ; --- Error --------------------------------------------------------------
@@ -283,6 +292,16 @@ EM_QUIET	equ	$0080	;Quiet - gate off
 	UBYTE	ch_WaveNew
 	UBYTE	ch_AudIRQType		;See Type list below
 	UBYTE	ch_RSyncToggle
+	; True if filter is enabled for this channel
+	UBYTE   ch_FilterEnabled
+	UBYTE   ch_pad
+	; IIR filter previous input/output signal for this channel
+	ULONG	ch_Xn1
+	ULONG	ch_Xn2
+	ULONG	ch_Yn1
+	ULONG	ch_Yn2
+	; Filtered output will be written here
+	APTR	ch_FilterOutputBuffer
 	LABEL	ch_SIZEOF
 
 ; --- Channel Audio IRQ Types ---------------------------------------------
