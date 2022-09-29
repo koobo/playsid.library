@@ -1,3 +1,242 @@
+;APS00000000000000000000000000000000000000000000000000000000000000000000000000000000
+ ifnd __VASM
+TEST = 1
+ endif
+
+ ifd TEST
+ 	incdir	include:
+ 	include	exec/types.i
+ 	include	exec/libraries.i
+ 	
+
+	STRUCTURE PlaySidBase,0
+	STRUCT	psb_LibNode,LIB_SIZE
+	UBYTE	psb_Flags
+	UBYTE	psb_Pad
+	APTR	psb_SysLib
+	APTR	psb_SegList
+
+	UWORD	psb_PlayMode
+	UWORD	psb_TimeSeconds
+	UWORD	psb_TimeMinutes
+	APTR	psb_DisplayData
+
+	APTR	psb_SongLocation
+	UWORD	psb_SongLength
+	UWORD	psb_SongStart
+	UWORD	psb_SongInit
+	UWORD	psb_SongMain
+	UWORD	psb_SongNumber
+	UWORD	psb_SongDefault
+	ULONG	psb_SongSpeedMask
+	UWORD	psb_SongFlags
+
+	UWORD	psb_SongTune
+	UWORD	psb_SongSpeed
+	UWORD	psb_SongLoop
+
+	UWORD	psb_VertFreq
+	UWORD	psb_TimeEnable
+	APTR	psb_TimeSignalTask
+	ULONG	psb_TimeSignalMask
+	UWORD	psb_DisplayEnable
+	APTR	psb_DisplaySignalTask
+	ULONG	psb_DisplaySignalMask
+	UWORD	psb_ReverseEnable
+	UWORD	psb_EmulResourceFlag
+	UWORD	psb_SongSetFlag
+	STRUCT	psb_ChannelEnable,8
+
+	APTR	psb_VolumePointer
+	STRUCT	psb_VolumePointers,64
+	UWORD	psb_IntVecAudFlag
+	APTR	psb_OldIntVecAud0
+	APTR	psb_OldIntVecAud1
+	APTR	psb_OldIntVecAud2
+	APTR	psb_OldIntVecAud3
+	UWORD	psb_TimerAFlag
+	UWORD	psb_TimerBFlag
+	APTR	psb_CalcFTable
+	APTR	psb_SIDSampleNoise
+	APTR	psb_SIDSampleTri
+	APTR	psb_SIDSampleSaw
+	APTR	psb_SIDSamplePulse
+	APTR	psb_SIDSampleTPul
+	APTR	psb_SIDSampleTSaw
+	APTR	psb_SIDSampleFree
+	APTR	psb_SIDSampleFour
+	APTR	psb_SIDSampleFConv
+	APTR	psb_FourMemList
+	APTR	psb_SoundRemPars
+	APTR	psb_PlayBackPars
+	UWORD	psb_TimerConstA
+	UWORD	psb_TimerConstB
+	UWORD	psb_TimerConst50Hz
+	UWORD	psb_ConvClockConst
+	UWORD	psb_ConvFourConst
+	UWORD	psb_CPUVersion
+	UWORD	psb_OldC64TimerA
+	UWORD	psb_NewFreq
+	UWORD	psb_LastNoise
+	UWORD	psb_PulseOffset
+	UWORD	psb_UpdateFreq
+	UWORD	psb_UpdateCounter
+	UWORD	psb_RememberMode
+	APTR	psb_Enve1
+	APTR	psb_Enve2
+	APTR	psb_Enve3
+	APTR	psb_Chan1
+	APTR	psb_Chan2
+	APTR	psb_Chan3
+	APTR	psb_Chan4
+	APTR	psb_AttDecRelStep
+	APTR	psb_VolumeTable
+	APTR	psb_AttackDecay
+	APTR	psb_SustainRelease
+	APTR	psb_SustainTable
+	APTR	psb_AttackTable
+	APTR	psb_PrgMem
+	APTR	psb_MMUMem
+	APTR	psb_C64Mem
+	APTR	psb_EnvelopeMem
+	APTR	psb_SampleMem
+	UWORD	psb_AudioDevice
+	APTR	psb_AudioIO
+	APTR	psb_AudioMP
+	UBYTE	psb_FilterType ; SID filter type
+	UBYTE	psb_FilterFreq ; SID filter frequency (upper 8 bits)
+	UBYTE	psb_FilterResonance ; SID Filter resonance (0..15)
+	UBYTE   psd_pad1
+	ULONG	psb_FilterAmpl ; IIR filter input attenuation
+	ULONG	psb_FilterD1 ; IIR filter coefficients
+	ULONG	psb_FilterD2 ; IIR filter coefficients
+	ULONG	psb_FilterG1 ; IIR filter coefficients
+	ULONG	psb_FilterG2 ; IIR filter coefficients
+	LABEL	psb_SIZEOF
+
+; ========================================================================;
+; === Channel ============================================================;
+; ========================================================================;
+
+	STRUCTURE	Channel,0
+	APTR	ch_ProgPointer
+	APTR	ch_SamAdrOld
+	APTR	ch_SamAdrNew
+	ULONG	ch_SamLenDec
+	ULONG	ch_SamLenHDec
+	ULONG	ch_SamIndStart
+	ULONG	ch_SamIndStop
+	ULONG	ch_SyncLenOld
+	ULONG	ch_SyncLenNew
+	UWORD	ch_Freq64Old
+	UWORD	ch_Freq64New
+	UWORD	ch_SamPer
+	UWORD	ch_SamLen
+	UWORD	ch_SamPerOld
+	UWORD	ch_SamPerNew
+	UWORD	ch_SamLenOld
+	UWORD	ch_SamLenNew
+	UBYTE	ch_SyncIndOld
+	UBYTE	ch_SyncIndNew
+	UBYTE	ch_WaveOld
+	UBYTE	ch_WaveNew
+	UBYTE	ch_AudIRQType		;See Type list below
+	UBYTE	ch_RSyncToggle
+	; True if filter is enabled for this channel
+	UBYTE   ch_FilterEnabled
+	UBYTE   ch_pad
+	; IIR filter previous input/output signal for this channel
+	ULONG	ch_Xn1
+	ULONG	ch_Xn2
+	ULONG	ch_Yn1
+	ULONG	ch_Yn2
+	; Filtered output will be written here
+	APTR	ch_FilterOutputBuffer
+	LABEL	ch_SIZEOF
+
+
+;res lp 0: 227.755005
+;res hp 0: 366.373993
+;res lp 1: 225.977203
+;res hp 1: 352.971130
+;res lp 17: 209.062042
+;res hp 17: 298.289459
+
+;res lp 18: 209.745911
+;res hp 18: 304.587799
+
+;res lp 19: 210.754669
+;res hp 19: 311.997467
+;res lp 255: 53927.351562
+;res hp 255: 21424.048828
+
+;Module Name: Terra Cresta
+;Author     : Martin Galway
+;Copyright  : 1986 Imagine
+;
+;calc_filter:
+; fr: 209.745911
+; arg: 0.010000
+; f_type: 1
+; f_freq: 18
+; f_res: 15
+; f_ampl: 0.005172
+; d1: 2.000000
+; d2: 1.000000
+; g1: -1.717430
+; g2: 0.738120
+; ob.freq: 44100
+
+main
+	lea	_PlaySidBase,a6
+    	move.l	#ch1,psb_Chan1(a6)    
+    	move.l	#ch2,psb_Chan2(a6)    
+    	move.l	#ch3,psb_Chan3(a6)    
+    	jsr	initializeFilter
+
+        move.b  #1,psb_FilterType(a6)
+    	move.b  #15,psb_FilterResonance(a6)
+    	move.b  #18,psb_FilterFreq(a6)
+    	jsr     calcFilter
+
+	fmove.s	fr,fp0
+	fmul.s	#1000,fp0
+	fmove.l	fp0,d0
+
+	fmove.s	arg,fp0
+	fmul.s	#1000,fp0
+	fmove.l	fp0,d1
+
+	fmove.s	psb_FilterAmpl(a6),fp0
+	fmul.s	#1000,fp0
+	fmove.l	fp0,d2
+
+	fmove.s	psb_FilterD1(a6),fp1
+	fmul.s	#1000,fp1
+	fmove.l	fp1,d3
+
+	fmove.s	psb_FilterD2(a6),fp2
+	fmul.s	#1000,fp2
+	fmove.l	fp2,d4
+
+	fmove.s	psb_FilterG1(a6),fp3
+	fmul.s	#1000,fp3
+	fmove.l	fp3,d5
+
+	fmove.s	psb_FilterG2(a6),fp4
+	fmul.s	#1000,fp4
+	fmove.l	fp4,d6
+    	rts
+
+    section testData,bss
+_PlaySidBase	ds.b    psb_SIZEOF
+ch1		ds.b	ch_SIZEOF
+ch2		ds.b	ch_SIZEOF
+ch3		ds.b	ch_SIZEOF
+fr		ds.l	1
+arg		ds.l	1
+ endif ; TEST 
+
 
     section filterCode,code
 
@@ -135,7 +374,10 @@ calcFilter:
     fmove.s (a0,d1.w*4),fp0
 .1
     * fp0 = fr
-
+ ifd TEST
+    fmove.s fp0,fr
+ endif
+ 
     * Limit to <1/2 sample frequency, avoid div by 0 in case FILT_NOTCH below
 ; 	filt_t arg = fr / float(obtained.freq >> 1);
 ;	if (arg > 0.99)
@@ -154,6 +396,10 @@ calcFilter:
 .3
     * fp1 = arg
 
+ ifd TEST
+    fmove.s fp1,arg
+ endif
+    
 	; Calculate poles (resonance frequency and resonance)
 	; The (complex) poles are at
 	;   zp_1/2 = (-g1 +/- sqrt(g1^2 - 4*g2)) / 2
