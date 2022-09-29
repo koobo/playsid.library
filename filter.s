@@ -323,10 +323,14 @@ resetChannelFilterStates:
 * in:
 *    a6 = PlaySidBase
 calcFilter:
+    tst.b   psb_FilterEnabled(a6)
+    bne.b   .yes
+    rts
+.yes
     movem.l d0-d2/a0,-(sp)
-    ;move    #$ff0,$dff180
+    move    #$ff0,$dff180
     bsr.b   .do
-    ;move    #$000,$dff180
+    move    #$000,$dff180
     movem.l (sp)+,d0-d2/a0
     rts
 .do
@@ -754,18 +758,19 @@ calcFilter:
 *   ch_FilterOutputBuffer(a1) = output filtered data
 filterChannel:
     movem.l d0-a6,-(sp) 
+    move    #$0ff,$dff180
     move.l	_PlaySidBase,a6
     move    ch_SamPerOld(a1),ch_FilterOutputPeriod(a1)
     move    d1,d2
     lsr     #1,d2
     move    d2,ch_FilterOutputLength(a1)
 
+    ; Double buffering
     move.l  ch_FilterOutputBufferA(a1),a2
     move.l  ch_FilterOutputBufferB(a1),a3
     move.l  a3,ch_FilterOutputBufferA(a1)
     move.l  a2,ch_FilterOutputBufferB(a1)
 
-    ; move    #$ff0,$dff180
  
     subq    #1,d1
     move.l  d0,a0
@@ -775,6 +780,7 @@ filterChannel:
     move.b  d0,(a2)+
     dbf     d1,.loop
     movem.l (sp)+,d0-a6
+    clr     $dff180
     rts
 
 
@@ -793,10 +799,10 @@ filter:
 
     ;float xn = float(sum_output_filter_left) * sid.f_ampl;	
  
-    ext.w   d0
-    asl.w   #7,d0
-    fmove.w  d0,fp0
-    ;fmove.b  d0,fp0
+    ;ext.w   d0
+    ;asl.w   #7,d0
+    ;fmove.w  d0,fp0
+    fmove.b  d0,fp0
 
     fmul.s   psb_FilterAmpl(a6),fp0
 
@@ -837,9 +843,9 @@ filter:
     move.l   ch_Yn1(a1),ch_Yn2(a1)
     fmove.s  fp1,ch_Yn1(a1)
 
-    fmove.w fp1,d0
-    asr.w   #8,d0
-    ;fmove.b  fp1,d0
+    ;fmove.w fp1,d0
+    ;asr.w   #8,d0
+    fmove.b  fp1,d0
     rts
 
 

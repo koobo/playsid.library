@@ -147,6 +147,9 @@ AutoInitFunction
 		lea	AttDecRelStep,a2
 		move.l	a2,psb_AttDecRelStep(a5)
 
+		; Master filter switch
+		st 	psb_FilterEnabled(a5)
+
 		move.l	a5,d0
 		movem.l	(a7)+,a2/a5
 		rts
@@ -3923,6 +3926,8 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 	;Bits #4-#7: Filter resonance.
 	move.l	a6,-(sp)
 	move.l	_PlaySidBase,a6
+	tst.b	psb_FilterEnabled(a6)
+	beq.b	.noFilters
 	move.l	psb_Chan1(a6),a2
 	ror.b	#1,d6
 	smi		ch_FilterEnabled(a2)
@@ -3938,8 +3943,8 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 	beq.b	.sameRes
 	move.b	d6,psb_FilterResonance(a6)
 	jsr		calcFilter
-	;move	#$0ff,$dff180
 .sameRes
+.noFilters
 	move.l	(sp)+,a6
 	Next_Inst
 .D418
@@ -4307,7 +4312,7 @@ level4H1Ring
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRing
 		printt "TODO"
-		move	#$ff0,$dff180
+		move	#$00f,$dff180
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
 		rts
@@ -4340,7 +4345,7 @@ level4H1RSync
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRSync
 		printt "TODO"
-			move	#$ff0,$dff180
+		move	#$00f,$dff180
 
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
@@ -4439,7 +4444,7 @@ level4H2Ring
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRing
 		printt "TODO"
-		move	#$ff0,$dff180
+		move	#$00f,$dff180
 
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
@@ -4473,6 +4478,7 @@ level4H2RSync
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRSync
 		printt "TODO"
+		move	#$00f,$dff180
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
 		rts
@@ -4569,7 +4575,7 @@ level4H3Ring
 		move.w	#INTF_AUD2,INTREQ(a0)
 		bsr	GetNextRing
 		printt "TODO"
-				move	#$ff0,$dff180
+		move	#$00f,$dff180
 
 		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
