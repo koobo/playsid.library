@@ -260,9 +260,9 @@ ffreq_hp    ds.l    256 ; High-pass resonance frequency table
 calcResonanceLp:
     ; 227.755 - 1.7635 * f - 0.0176385 * f * f + 0.00333484 * f * f * f;
     fmove   fp0,fp1 
-    fmul    fp1,fp1 * f^2
+    fmul    fp0,fp1 * f^2
     fmove   fp1,fp2
-    fmul    fp2,fp2 * f^3
+    fmul    fp0,fp2 * f^3
     fmul.s  #0.00333484,fp2
     fmul.s  #-0.0176385,fp1
     fmul.s  #-1.7635,fp0
@@ -278,9 +278,9 @@ calcResonanceLp:
 calcResonanceHp:
     ; 366.374 - 14.0052 * f + 0.603212 * f * f - 0.000880196 * f * f * f;
     fmove   fp0,fp1 
-    fmul    fp1,fp1 * f^2
+    fmul    fp0,fp1 * f^2
     fmove   fp1,fp2
-    fmul    fp2,fp2 * f^3
+    fmul    fp0,fp2 * f^3
     fmul.s  #-0.000880196,fp2
     fmul.s  #0.603212,fp1
     fmul.s  #-14.0052,fp0
@@ -322,13 +322,12 @@ resetChannelFilterStates:
 * in:
 *    a6 = PlaySidBase
 calcFilter:
-    movem.l d0-a6,-(sp)
-    move    #$f00,$dff180
+    movem.l d0-d2/a0,-(sp)
     bsr.b   .do
-    movem.l (sp)+,d0-a6
+    movem.l (sp)+,d0-d2/a0
     rts
 .do
-    * Usage: d0, fp0-fp7
+    * Usage: d0,d1,a0,fp0-fp7
 
     move.b  psb_FilterType(a6),d0
 
@@ -386,7 +385,7 @@ calcFilter:
 ;		arg = 0.01;
 
     fmove   fp0,fp1 
-    fdiv.s  #28000/2,fp1  
+    fdiv.s  #44100/2,fp1  
     fcmp.s  #0.99,fp1
     fble    .2
     fmove.s #0.99,fp1
@@ -409,7 +408,7 @@ calcFilter:
     fmul.s   #0.0133333333,fp4
     fmove   fp1,fp2  * arg
     fmove   fp1,fp3
-    fmul    fp3,fp3  * arg^2
+    fmul    fp1,fp3  * arg^2
     fmul.s  #-1.2,fp2
     fmul.s  #1.2,fp3
     fadd    fp4,fp2
@@ -418,13 +417,14 @@ calcFilter:
     * fp2 = g2
 
 	;g1 = -2.0 * sqrt(g2) * cos(M_PI * arg);
-    fmovecr #0,fp3 * PI
-    fmul   fp1,fp3 
-    fcos   fp3
-    fmove  fp2,fp4
-    fsqrt  fp4
-    fmul   fp4,fp3
-    fmul.s #-2.0,fp3
+    fmovecr #0,fp3 * constant: PI
+    fmul    fp1,fp3 
+    fcos    fp3
+    fmove.s fp3,d2 * use this later
+    fmove   fp2,fp4
+    fsqrt   fp4
+    fmul    fp4,fp3
+    fmul.s  #-2.0,fp3
     * fp3 = g1
 
     fmove   fp1,fp0
@@ -433,8 +433,6 @@ calcFilter:
     * fp1 = g1
     * fp2 = g2
     
-    fmove.s fp1,psb_FilterG1(a6)
-    fmove.s fp2,psb_FilterG2(a6)
 
     ; Increase resonance if LP/HP combined with BP
     ;if (f_type == FILT_LPBP || f_type == FILT_HPBP)
@@ -457,7 +455,9 @@ calcFilter:
     fmove   fp1,fp4
     fabs    fp4
     fsub.s  #1.0,fp4
-    fcmp    fp4,fp2
+    ;fcmp    fp4,fp2
+    ;fbge    .noStab
+    fcmp    fp2,fp4
     fblt    .noStab
     ftst    fp1
     fble    .4
@@ -469,6 +469,9 @@ calcFilter:
     fadd.s   #0.99,fp1
     fneg    fp1
 .noStab
+
+    fmove.s fp1,psb_FilterG1(a6)
+    fmove.s fp2,psb_FilterG2(a6)
 
 	; Calculate roots (filter characteristic) and input attenuation
 	; The (complex) roots are at
@@ -505,12 +508,16 @@ calcFilter:
 	;	break;
     fmove.s #2.0,fp4
     fmove.s fp4,psb_FilterD1(a6)
-    fmove.s #1.0,fp4
+    ;fmove.s #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fmove.s fp4,psb_FilterD2(a6)
     fadd    fp1,fp4
     fadd    fp2,fp4
     fmul.s  #0.25,fp4
     fmove.s fp4,psb_FilterAmpl(a6)
+
+    ; terra cresta
+    ;move    #$f00,$dff180
     rts
 
 .f_hpbp
@@ -521,7 +528,8 @@ calcFilter:
 	;	break;
     fmove.s #-2.0,fp4
     fmove.s fp4,psb_FilterD1(a6)
-    fmove.s #1.0,fp4
+    ;fmove.s #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fmove.s fp4,psb_FilterD2(a6)
     fsub    fp1,fp4
     fadd    fp2,fp4
@@ -623,7 +631,7 @@ calcFilter:
 	;	break;
 
 
-    fmovecr #0,fp3 * PI
+    fmovecr #0,fp3 * contant: PI
     fmul    fp0,fp3 
     fcos    fp3  
     * fp3 = cos(M_PI * arg)
@@ -631,16 +639,19 @@ calcFilter:
     fmul.s  #-2.0,fp4
     fmove.s fp4,psb_FilterD1(a6)
 
-    fmove.s  #1.0,fp4  * could use constant $32
+    ;fmove.s  #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fmove.s fp4,psb_FilterD2(a6)
 
     fcmp.s  #0.5,fp0
     fblt    .low1
 
-    fmove.s  #1.0,fp4
+    ;fmove.s  #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fadd    fp1,fp4
     fadd    fp2,fp4
-    fmove.s  #1.0,fp5
+    ;fmove.s  #1.0,fp5
+    fmovecr  #$32,fp5 * constant: 1
     fsub    fp3,fp5
     fdiv    fp5,fp4
     fmul.s  #0.5,fp4
@@ -648,10 +659,12 @@ calcFilter:
 
     rts
 .low1
-    fmove.s  #1.0,fp4
+    ;fmove.s  #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fsub    fp1,fp4
     fadd    fp2,fp4
-    fmove.s   #1.0,fp5
+    ;fmove.s  #1.0,fp5
+    fmovecr  #$32,fp5 * constant: 1
     fadd    fp3,fp5
     fdiv    fp5,fp4
     fmul.s  #0.5,fp4
@@ -672,7 +685,7 @@ calcFilter:
 	;		f_ampl = (1.0 + g1 + g2) / (5.0 - 4.0 * cos(M_PI * arg));
 	;	break;
   
-    fmovecr #0,fp3 * PI
+    fmovecr #0,fp3 * constant: PI
     fmul    fp0,fp3 
     fcos    fp3  
     * fp3 = cos(M_PI * arg)
@@ -686,7 +699,8 @@ calcFilter:
     fcmp.s  #0.5,fp0
     fblt    .low1
 
-    fmove.s  #1.0,fp4
+    ;fmove.s #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fsub    fp1,fp4
     fadd    fp2,fp4
     fmove.s #5.0,fp5
@@ -698,7 +712,8 @@ calcFilter:
     rts
 
 .low2
-    fmove.s  #1.0,fp4
+    ;fmove.s #1.0,fp4
+    fmovecr  #$32,fp4 * constant: 1
     fadd    fp1,fp4
     fadd    fp2,fp4
     fmove.s #5.0,fp5
@@ -802,10 +817,10 @@ initializeFilter:
     lea     ffreq_lp(pc),a0
     lea     ffreq_hp(pc),a1
 .loop
-    fmove.w d0,fp0
+    fmove.l d0,fp0
     bsr     calcResonanceLp
     fmove.s fp0,(a0)+
-    fmove.w d0,fp0
+    fmove.l d0,fp0
     bsr     calcResonanceHp
     fmove.s fp0,(a1)+
 
