@@ -420,7 +420,7 @@ calcFilter:
     fmovecr #0,fp3 * constant: PI
     fmul    fp1,fp3 
     fcos    fp3
-    fmove.s fp3,d2 * use this later
+    fmove.s fp3,d2 * store this for later: cos(M_PI * arg)
     fmove   fp2,fp4
     fsqrt   fp4
     fmul    fp4,fp3
@@ -631,10 +631,11 @@ calcFilter:
 	;	break;
 
 
-    fmovecr #0,fp3 * contant: PI
-    fmul    fp0,fp3 
-    fcos    fp3  
+    ;fmovecr #0,fp3 * constant: PI
+    ;fmul    fp0,fp3 
+    ;fcos    fp3  
     * fp3 = cos(M_PI * arg)
+    fmove.s  d2,fp3 * calculated earlier
     fmove   fp3,fp4
     fmul.s  #-2.0,fp4
     fmove.s fp4,psb_FilterD1(a6)
@@ -685,13 +686,14 @@ calcFilter:
 	;		f_ampl = (1.0 + g1 + g2) / (5.0 - 4.0 * cos(M_PI * arg));
 	;	break;
   
-    fmovecr #0,fp3 * constant: PI
-    fmul    fp0,fp3 
-    fcos    fp3  
+    ;fmovecr #0,fp3 * constant: PI
+    ;fmul    fp0,fp3 
+    ;fcos    fp3  
     * fp3 = cos(M_PI * arg)
-    fmove   fp3,fp4
-    fmul.s  #-4.0,fp4
-    fmove.s fp4,psb_FilterD1(a6)
+    fmove.s  d2,fp3 * calculated earlier
+    fmove    fp3,fp4
+    fmul.s   #-4.0,fp4
+    fmove.s  fp4,psb_FilterD1(a6)
 
     fmove.s  #4.0,fp4  * could use constant $32
     fmove.s fp4,psb_FilterD2(a6)
