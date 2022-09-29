@@ -151,7 +151,8 @@ TEST = 1
 	ULONG	ch_Yn1
 	ULONG	ch_Yn2
 	; Filtered output will be written here
-	APTR	ch_FilterOutputBuffer
+	APTR	ch_FilterOutputBufferA
+	APTR	ch_FilterOutputBufferB
 	LABEL	ch_SIZEOF
 
 
@@ -323,7 +324,9 @@ resetChannelFilterStates:
 *    a6 = PlaySidBase
 calcFilter:
     movem.l d0-d2/a0,-(sp)
+    ;move    #$ff0,$dff180
     bsr.b   .do
+    ;move    #$000,$dff180
     movem.l (sp)+,d0-d2/a0
     rts
 .do
@@ -385,7 +388,10 @@ calcFilter:
 ;		arg = 0.01;
 
     fmove   fp0,fp1 
+    ; This should represent the actual sample rate,
+    ; it is constant in this case.
     fdiv.s  #44100/2,fp1  
+   ; fdiv.s  #44100/2,fp1  
     fcmp.s  #0.99,fp1
     fble    .2
     fmove.s #0.99,fp1
@@ -501,7 +507,9 @@ calcFilter:
     * fp2 = g2
 
 .f_lpbp
-	;case FILT_LPBP:
+   move    #$f00,$dff180
+ 
+ 	;case FILT_LPBP:
 	;case FILT_LP:		// Both roots at -1, H(1)=1
 	;	d1 = 2.0; d2 = 1.0;
 	;	f_ampl = 0.25 * (1.0 + g1 + g2);
@@ -517,10 +525,11 @@ calcFilter:
     fmove.s fp4,psb_FilterAmpl(a6)
 
     ; terra cresta
-    ;move    #$f00,$dff180
     rts
 
 .f_hpbp
+    move    #$0f0,$dff180
+ 
     ;case FILT_HPBP:
 	;case FILT_HP:		// Both roots at 1, H(-1)=1
 	;	d1 = -2.0; d2 = 1.0;
@@ -542,6 +551,8 @@ calcFilter:
     * fp2 = g2
 
 .f_bp
+    move    #$00f,$dff180
+ 
     ;case FILT_BP: {		// Roots at +1 and -1, H_max=1
 	;	d1 = 0.0; d2 = -1.0;
 	;	float c = sqrt(g2*g2 + 2.0*g2 - g1*g1 + 1.0);
@@ -622,6 +633,8 @@ calcFilter:
     * fp2 = g2
 
 .f_notch
+    move    #$f0f,$dff180
+ 
     ;case FILT_NOTCH:	// Roots at exp(i*pi*arg) and exp(-i*pi*arg), H(1)=1 (arg>=0.5) or H(-1)=1 (arg<0.5)
 	;	d1 = -2.0 * cos(M_PI * arg); d2 = 1.0;
 	;	if (arg >= 0.5)
@@ -657,7 +670,6 @@ calcFilter:
     fdiv    fp5,fp4
     fmul.s  #0.5,fp4
     fmove.s fp4,psb_FilterAmpl(a6)
-
     rts
 .low1
     ;fmove.s  #1.0,fp4
@@ -677,6 +689,8 @@ calcFilter:
     * fp2 = g2
 
 .f_all 
+    move    #$ff0,$dff180
+ 
     ;// The following is pure guesswork...
 	;case FILT_ALL:		// Roots at 2*exp(i*pi*arg) and 2*exp(-i*pi*arg), H(-1)=1 (arg>=0.5) or H(1)=1 (arg<0.5)
 	;	d1 = -4.0 * cos(M_PI * arg); d2 = 4.0;
@@ -727,35 +741,41 @@ calcFilter:
     rts
     
 
+* PAL clock = 3546895
+* playback frequency in Hz: freq=clock/period
+* frequency to period:      period=clock/freq
+
+
 * in:
 *   d0 = sample data address
-*   d1 = sample data length
+*   d1 = sample data length, bytes
 *   a1 = ch structure
 * out:
 *   ch_FilterOutputBuffer(a1) = output filtered data
 filterChannel:
-    movem.l d0/d1/a0/a2/a6,-(sp) 
+    movem.l d0-a6,-(sp) 
     move.l	_PlaySidBase,a6
-    tst.l   ch_FilterOutputBuffer(a1)
-    beq.b   .error
-    tst.l   d0
-    beq.b   .error
+    move    ch_SamPerOld(a1),ch_FilterOutputPeriod(a1)
+    move    d1,d2
+    lsr     #1,d2
+    move    d2,ch_FilterOutputLength(a1)
+
+    move.l  ch_FilterOutputBufferA(a1),a2
+    move.l  ch_FilterOutputBufferB(a1),a3
+    move.l  a3,ch_FilterOutputBufferA(a1)
+    move.l  a2,ch_FilterOutputBufferB(a1)
+
+    ; move    #$ff0,$dff180
+ 
     subq    #1,d1
-    bmi     .error
-    move.l  ch_FilterOutputBuffer(a1),a2
     move.l  d0,a0
 .loop
     move.b  (a0)+,d0
     bsr.b   filter
     move.b  d0,(a2)+
     dbf     d1,.loop
-.x
-    movem.l (sp)+,d0/d1/a0/a2/a6
+    movem.l (sp)+,d0-a6
     rts
-
-.error
-    move    #$f00,$dff180
-    bra     .x
 
 
 * in:
@@ -765,12 +785,19 @@ filterChannel:
 * out:
 *   d0 = fitered output byte
 filter:
-
+  
     ; fp0 = xn
     ; fp1 = yn
 
+    ; this assumes a 16-bit input?
+
     ;float xn = float(sum_output_filter_left) * sid.f_ampl;	
-    fmove.b  d0,fp0
+ 
+    ext.w   d0
+    asl.w   #7,d0
+    fmove.w  d0,fp0
+    ;fmove.b  d0,fp0
+
     fmul.s   psb_FilterAmpl(a6),fp0
 
     ;float yn = xn + sid.d1 * sid.xn1_l 
@@ -810,7 +837,9 @@ filter:
     move.l   ch_Yn1(a1),ch_Yn2(a1)
     fmove.s  fp1,ch_Yn1(a1)
 
-    fmove.b  fp1,d0    
+    fmove.w fp1,d0
+    asr.w   #8,d0
+    ;fmove.b  fp1,d0
     rts
 
 

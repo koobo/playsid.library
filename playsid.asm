@@ -132,7 +132,6 @@ AutoInitFunction
 		move.l	a2,psb_Chan2(a5)
 		lea	Chan3,a2
 		move.l	a2,psb_Chan3(a5)
-		move.l	#Chan3FilterOut,ch_FilterOutputBuffer(a2)
 		lea	Chan4,a2
 		move.l	a2,psb_Chan4(a5)
 		lea	VolumeTable,a2
@@ -924,17 +923,20 @@ InitSID		movem.l	a2-a3,-(a7)
 		move.l	psb_Chan1(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-		move.l	#Chan1FilterOut,ch_FilterOutputBuffer(a0)
+		move.l	#Chan1FilterOutA,ch_FilterOutputBufferA(a0)
+		move.l	#Chan1FilterOutB,ch_FilterOutputBufferB(a0)
 	
 		move.l	psb_Chan2(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-		move.l	#Chan2FilterOut,ch_FilterOutputBuffer(a0)
+		move.l	#Chan2FilterOutA,ch_FilterOutputBufferA(a0)
+		move.l	#Chan2FilterOutB,ch_FilterOutputBufferB(a0)
 
 		move.l	psb_Chan3(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-		move.l	#Chan3FilterOut,ch_FilterOutputBuffer(a0)
+		move.l	#Chan3FilterOutA,ch_FilterOutputBufferA(a0)
+		move.l	#Chan3FilterOutB,ch_FilterOutputBufferB(a0)
 
 		jsr		resetFilterVariables
 
@@ -964,18 +966,20 @@ InitSIDCont	move.l	psb_Chan1(a6),a0
 		move.l	psb_Chan1(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-		move.l	#Chan1FilterOut,ch_FilterOutputBuffer(a0)
+		move.l	#Chan1FilterOutA,ch_FilterOutputBufferA(a0)
+		move.l	#Chan1FilterOutB,ch_FilterOutputBufferB(a0)
 	
 		move.l	psb_Chan2(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-		move.l	#Chan2FilterOut,ch_FilterOutputBuffer(a0)
-	
+		move.l	#Chan2FilterOutA,ch_FilterOutputBufferA(a0)
+		move.l	#Chan2FilterOutB,ch_FilterOutputBufferB(a0)
+
 		move.l	psb_Chan3(a6),a0
 		move.w	#-1,ch_SamPer(a0)
 		move.w	#4,ch_SamLen(a0)
-		move.l	#Chan3FilterOut,ch_FilterOutputBuffer(a0)
-	
+		move.l	#Chan3FilterOutA,ch_FilterOutputBufferA(a0)
+		move.l	#Chan3FilterOutB,ch_FilterOutputBufferB(a0)
 		rts
 .Clear
 		clr.b	(a0)+
@@ -1834,13 +1838,15 @@ StartSNormal
 		
 		tst.b	ch_FilterEnabled(a0)
 		beq.b	.1
-		swap	d1
-		move.l	a1,d4
+		move.l	a1,d4 * stash a1
 		move.l	a0,a1
+		move.w	ch_SamLenOld(a0),d1
 		jsr		filterChannel
 		move.l	d4,a1
+		move.l	ch_FilterOutputBufferA(a0),d0
+		move	ch_FilterOutputLength(a0),d1
 		swap	d1
-		move.l	ch_FilterOutputBuffer(a0),d0
+		move	ch_FilterOutputPeriod(a0),d1
 .1
 		movem.l	d0/d1,(a2) * SAMPLE addr, len, period
 		move.w	INTREQR(a4),d4
@@ -1864,13 +1870,15 @@ StartSWait
 
 		tst.b	ch_FilterEnabled(a0)
 		beq.b	.1
-		swap	d1
-		move.l	a1,d4
+		move.l	a1,d4 * stash
 		move.l	a0,a1
+		move.w	ch_SamLenOld(a0),d1
 		jsr		filterChannel
 		move.l	d4,a1
+		move.l	ch_FilterOutputBufferA(a0),d0
+		move	ch_FilterOutputLength(a0),d1
 		swap	d1
-		move.l	ch_FilterOutputBuffer(a0),d0
+		move	ch_FilterOutputPeriod(a0),d1
 .1
 		movem.l	d0/d1,(a2) * SAMPLE addr, len, period
 		move.w	INTREQR(a4),d4
@@ -3900,7 +3908,6 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 	cmp.b	psb_FilterFreq(a6),d6
 	beq.b	.sameFr
 	move.b	d6,psb_FilterFreq(a6)
-	;move	#$00f,$dff180
 	jsr		calcFilter
 .sameFr
 	move.l	(sp)+,a6
@@ -4222,15 +4229,17 @@ level4H1New
 		move.l	ch_SamAdrOld(a1),d0
 		move.w	ch_SamLenOld(a1),d1
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),AUD0LC(a0)
+		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD0PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
 		bra.b	.3
 .2
 		move.l	ch_SamAdrOld(a1),AUD0LC(a0)
-.3
+		move.w	ch_SamPerOld(a1),AUD0PER(a0)
 		move.w	ch_SamLenOld(a1),d0
 		lsr.w	#1,d0
 		move.w	d0,AUD0LEN(a0)
-		move.w	ch_SamPerOld(a1),AUD0PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
 .1
@@ -4246,7 +4255,6 @@ level4H1Sync
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextSync
 
-		move.w	d0,AUD0LEN(a0)
 
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4254,12 +4262,15 @@ level4H1Sync
 		add		d1,d1
 		move.l	ch_SamAdrOld(a1),d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),AUD0LC(a0)
+		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD0PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
 		bra.b	.3
 .2
 		move.l	ch_SamAdrOld(a1),AUD0LC(a0)
-.3
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
+		move.w	d0,AUD0LEN(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
 .1
@@ -4274,7 +4285,6 @@ level4H1Ring
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRing
-		move.w	d0,AUD0LEN(a0)
 
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4282,15 +4292,22 @@ level4H1Ring
 		add		d1,d1
 		move.l	a5,d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),a5
+		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD0PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
+		bra		.3
 .2
 		move.l	a5,AUD0LC(a0)
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
+		move.w	d0,AUD0LEN(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
 .1
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRing
+		printt "TODO"
+		move	#$ff0,$dff180
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
 		rts
@@ -4301,7 +4318,6 @@ level4H1RSync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRSync
-		move.w	d0,AUD0LEN(a0)
 		
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4309,16 +4325,23 @@ level4H1RSync
 		add		d1,d1
 		move.l	a5,d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),a5
+		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
+		move.w	ch_FilterOutputPeriod(a1),AUD0PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
+		bra		.3
 .2
 		move.l	a5,AUD0LC(a0)
-
+		move.w	d0,AUD0LEN(a0)
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD0,DMACON(a0)
 		rts
 .1
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRSync
+		printt "TODO"
+			move	#$ff0,$dff180
+
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
 		rts
@@ -4338,14 +4361,17 @@ level4H2New
 		move.l	ch_SamAdrOld(a1),d0
 		move.w	ch_SamLenOld(a1),d1
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),AUD1LC(a0)
+		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD1PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
 		bra.b	.3
 .2
 		move.l	ch_SamAdrOld(a1),AUD1LC(a0)
-.3		move.w	ch_SamLenOld(a1),d0
+		move.w	ch_SamPerOld(a1),AUD1PER(a0)
+		move.w	ch_SamLenOld(a1),d0
 		lsr.w	#1,d0
 		move.w	d0,AUD1LEN(a0)
-		move.w	ch_SamPerOld(a1),AUD1PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
 		
@@ -4361,7 +4387,6 @@ level4H2Sync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextSync
-		move.w	d0,AUD1LEN(a0)
 
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4369,12 +4394,15 @@ level4H2Sync
 		add		d1,d1
 		move.l	ch_SamAdrOld(a1),d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),AUD1LC(a0)
+		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD1PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
 		bra.b	.3
 .2
 		move.l	ch_SamAdrOld(a1),AUD1LC(a0)
-.3	
+		move.w	d0,AUD1LEN(a0)
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
+.3	
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
 .1
@@ -4389,7 +4417,6 @@ level4H2Ring
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRing
-		move.w	d0,AUD1LEN(a0)
 
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4397,16 +4424,23 @@ level4H2Ring
 		add		d1,d1
 		move.l	a5,d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),a5
+		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD1PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
+		bra		.3
 .2
+		move.w	d0,AUD1LEN(a0)
 		move.l	a5,AUD1LC(a0)
-
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
 .1
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRing
+		printt "TODO"
+		move	#$ff0,$dff180
+
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
 		rts
@@ -4417,7 +4451,6 @@ level4H2RSync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRSync
-		move.w	d0,AUD1LEN(a0)
 	
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4425,16 +4458,21 @@ level4H2RSync
 		add		d1,d1
 		move.l	a5,d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),a5
+		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD1PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
+		bra		.3
 .2
 		move.l	a5,AUD1LC(a0)
-	
+		move.w	d0,AUD1LEN(a0)
 		move.w	ch_SamPerOld(a1),AUD1PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD1,DMACON(a0)
 		rts
 .1
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRSync
+		printt "TODO"
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
 		rts
@@ -4454,15 +4492,17 @@ level4H3New
 		move.l	ch_SamAdrOld(a1),d0
 		move.w	ch_SamLenOld(a1),d1
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),AUD2LC(a0)
+		move.l	ch_FilterOutputBufferA(a1),AUD2LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD2PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD2LEN(a0)
 		bra.b	.3
 .2
 		move.l	ch_SamAdrOld(a1),AUD2LC(a0)
-.3
+		move.w	ch_SamPerOld(a1),AUD2PER(a0)
 		move.w	ch_SamLenOld(a1),d0
 		lsr.w	#1,d0
 		move.w	d0,AUD2LEN(a0)
-		move.w	ch_SamPerOld(a1),AUD2PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
 .1
@@ -4477,7 +4517,6 @@ level4H3Sync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextSync
-		move.w	d0,AUD2LEN(a0)
 
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4485,12 +4524,15 @@ level4H3Sync
 		add		d1,d1
 		move.l	ch_SamAdrOld(a1),d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),AUD2LC(a0)
+		move.l	ch_FilterOutputBufferA(a1),AUD2LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD2PER(a0)
+		move.w	ch_FilterOutputLength(a1),AUD2LEN(a0)
 		bra.b	.3
 .2
+		move.w	d0,AUD2LEN(a0)
 		move.l	ch_SamAdrOld(a1),AUD2LC(a0)
-.3	
 		move.w	ch_SamPerOld(a1),AUD2PER(a0)
+.3	
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
 .1
@@ -4505,7 +4547,6 @@ level4H3Ring
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRing
-		move.w	d0,AUD2LEN(a0)
 	
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4513,16 +4554,23 @@ level4H3Ring
 		add		d1,d1
 		move.l	a5,d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),a5
+		move.l	ch_FilterOutputBufferA(a1),AUD2LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD2PER(a0)		
+		move.w	ch_FilterOutputLength(a1),AUD2LEN(a0)
+		bra.b	.3
 .2
-		move.l	a5,AUD2LC(a0)
-	
+		move.w	d0,AUD2LEN(a0)
+		move.l	a5,AUD2LC(a0)	
 		move.w	ch_SamPerOld(a1),AUD2PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
 .1
 		move.w	#INTF_AUD2,INTREQ(a0)
 		bsr	GetNextRing
+		printt "TODO"
+				move	#$ff0,$dff180
+
 		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
 		rts
@@ -4533,7 +4581,6 @@ level4H3RSync
 		lea	.1(pc),a5
 		move.l	a5,ch_ProgPointer(a1)
 		bsr	GetNextRSync
-		move.w	d0,AUD2LEN(a0)
 		
 		tst.b	ch_FilterEnabled(a1)
 		beq.b	.2
@@ -4541,16 +4588,21 @@ level4H3RSync
 		add		d1,d1
 		move.l	a5,d0
 		jsr		filterChannel
-		move.l	ch_FilterOutputBuffer(a1),a5
+		move.l	ch_FilterOutputBufferA(a1),AUD2LC(a0)
+		move	ch_FilterOutputPeriod(a1),AUD2PER(a0)		
+		move.w	ch_FilterOutputLength(a1),AUD2LEN(a0)
+		bra.b	.3
 .2
 		move.l	a5,AUD2LC(a0)
-
+		move.w	d0,AUD2LEN(a0)
 		move.w	ch_SamPerOld(a1),AUD2PER(a0)
+.3
 		move.w	#DMAF_SETCLR+DMAF_AUD2,DMACON(a0)
 		rts
 .1
 		move.w	#INTF_AUD2,INTREQ(a0)
 		bsr	GetNextRSync
+		printt "TODO"
 		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
 		rts
@@ -7279,7 +7331,10 @@ _PlaySidBase	ds.l	1
 	section FilterData,bss_c
 
 ; TODO how big should these be?
-Chan1FilterOut	ds.b	10240
-Chan2FilterOut	ds.b	10240
-Chan3FilterOut	ds.b	10240
+Chan1FilterOutA	ds.b	10240
+Chan1FilterOutB	ds.b	10240
+Chan2FilterOutA	ds.b	10240
+Chan2FilterOutB	ds.b	10240
+Chan3FilterOutA	ds.b	10240
+Chan3FilterOutB	ds.b	10240
 
