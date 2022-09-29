@@ -3897,9 +3897,9 @@ WriteIO					;Write 64 I/O $D000-$DFFF
 	move.l	a6,-(sp)
 	; Filter frequency bits 3..10
 	move.l	_PlaySidBase,a6
-	cmp.b	psb_FilterFreq(a6),d7
+	cmp.b	psb_FilterFreq(a6),d6
 	beq.b	.sameFr
-	move.b	d7,psb_FilterFreq(a6)
+	move.b	d6,psb_FilterFreq(a6)
 	;move	#$00f,$dff180
 	jsr		calcFilter
 .sameFr
