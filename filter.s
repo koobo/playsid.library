@@ -323,14 +323,15 @@ resetChannelFilterStates:
 * in:
 *    a6 = PlaySidBase
 calcFilter:
+    printt  "TODO: verify calculation results"
     tst.b   psb_FilterEnabled(a6)
     bne.b   .yes
     rts
 .yes
     movem.l d0-d2/a0,-(sp)
-    move    #$ff0,$dff180
+    ;move    #$ff0,$dff180
     bsr.b   .do
-    move    #$000,$dff180
+    ;move    #$000,$dff180
     movem.l (sp)+,d0-d2/a0
     rts
 .do
@@ -511,7 +512,7 @@ calcFilter:
     * fp2 = g2
 
 .f_lpbp
-   move    #$f00,$dff180
+   ;move    #$f00,$dff180
  
  	;case FILT_LPBP:
 	;case FILT_LP:		// Both roots at -1, H(1)=1
@@ -532,7 +533,7 @@ calcFilter:
     rts
 
 .f_hpbp
-    move    #$0f0,$dff180
+   ; move    #$0f0,$dff180
  
     ;case FILT_HPBP:
 	;case FILT_HP:		// Both roots at 1, H(-1)=1
@@ -555,7 +556,7 @@ calcFilter:
     * fp2 = g2
 
 .f_bp
-    move    #$00f,$dff180
+    ;move    #$00f,$dff180
  
     ;case FILT_BP: {		// Roots at +1 and -1, H_max=1
 	;	d1 = 0.0; d2 = -1.0;
@@ -637,7 +638,7 @@ calcFilter:
     * fp2 = g2
 
 .f_notch
-    move    #$f0f,$dff180
+    ;move    #$f0f,$dff180
  
     ;case FILT_NOTCH:	// Roots at exp(i*pi*arg) and exp(-i*pi*arg), H(1)=1 (arg>=0.5) or H(-1)=1 (arg<0.5)
 	;	d1 = -2.0 * cos(M_PI * arg); d2 = 1.0;
@@ -693,7 +694,7 @@ calcFilter:
     * fp2 = g2
 
 .f_all 
-    move    #$ff0,$dff180
+    ;move    #$ff0,$dff180
  
     ;// The following is pure guesswork...
 	;case FILT_ALL:		// Roots at 2*exp(i*pi*arg) and 2*exp(-i*pi*arg), H(-1)=1 (arg>=0.5) or H(1)=1 (arg<0.5)
@@ -758,7 +759,7 @@ calcFilter:
 *   ch_FilterOutputBuffer(a1) = output filtered data
 filterChannel:
     movem.l d0-a6,-(sp) 
-    move    #$0ff,$dff180
+    ;move    #$0ff,$dff180
     move.l	_PlaySidBase,a6
     move    ch_SamPerOld(a1),ch_FilterOutputPeriod(a1)
     move    d1,d2
@@ -780,7 +781,7 @@ filterChannel:
     move.b  d0,(a2)+
     dbf     d1,.loop
     movem.l (sp)+,d0-a6
-    clr     $dff180
+    ;clr     $dff180
     rts
 
 

@@ -4312,7 +4312,7 @@ level4H1Ring
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRing
 		printt "TODO"
-		move	#$00f,$dff180
+		;move	#$00f,$dff180
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
 		rts
@@ -4345,7 +4345,7 @@ level4H1RSync
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRSync
 		printt "TODO"
-		move	#$00f,$dff180
+		;move	#$00f,$dff180
 
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
@@ -4444,7 +4444,7 @@ level4H2Ring
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRing
 		printt "TODO"
-		move	#$00f,$dff180
+		;move	#$00f,$dff180
 
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
@@ -4478,7 +4478,7 @@ level4H2RSync
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRSync
 		printt "TODO"
-		move	#$00f,$dff180
+		;move	#$00f,$dff180
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
 		rts
@@ -4575,7 +4575,7 @@ level4H3Ring
 		move.w	#INTF_AUD2,INTREQ(a0)
 		bsr	GetNextRing
 		printt "TODO"
-		move	#$00f,$dff180
+		;move	#$00f,$dff180
 
 		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
