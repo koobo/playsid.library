@@ -4300,7 +4300,7 @@ level4H1Ring
 		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
 		move	ch_FilterOutputPeriod(a1),AUD0PER(a0)
 		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
-		bra		.3
+		bra.b   .3
 .2
 		move.l	a5,AUD0LC(a0)
 		move.w	ch_SamPerOld(a1),AUD0PER(a0)
@@ -4333,7 +4333,7 @@ level4H1RSync
 		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
 		move.w	ch_FilterOutputPeriod(a1),AUD0PER(a0)
 		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
-		bra		.3
+		bra.b   .3
 .2
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
@@ -4432,7 +4432,7 @@ level4H2Ring
 		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
 		move	ch_FilterOutputPeriod(a1),AUD1PER(a0)
 		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
-		bra		.3
+		bra.b	.3
 .2
 		move.w	d0,AUD1LEN(a0)
 		move.l	a5,AUD1LC(a0)
@@ -4466,7 +4466,7 @@ level4H2RSync
 		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
 		move	ch_FilterOutputPeriod(a1),AUD1PER(a0)
 		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
-		bra		.3
+		bra.b   .3
 .2
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
