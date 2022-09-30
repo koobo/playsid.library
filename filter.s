@@ -3,6 +3,10 @@
 TEST = 1
  endif
 
+USE_FIXED_POINT = 0
+FP_SHIFT        = 14
+
+
  ifd TEST
  	incdir	include:
  	include	exec/types.i
@@ -106,12 +110,13 @@ TEST = 1
 	UBYTE	psb_FilterType ; SID filter type
 	UBYTE	psb_FilterFreq ; SID filter frequency (upper 8 bits)
 	UBYTE	psb_FilterResonance ; SID Filter resonance (0..15)
-	UBYTE   psd_pad1
+	UBYTE   psb_FilterEnabled
 	ULONG	psb_FilterAmpl ; IIR filter input attenuation
 	ULONG	psb_FilterD1 ; IIR filter coefficients
 	ULONG	psb_FilterD2 ; IIR filter coefficients
 	ULONG	psb_FilterG1 ; IIR filter coefficients
 	ULONG	psb_FilterG2 ; IIR filter coefficients
+	
 	LABEL	psb_SIZEOF
 
 ; ========================================================================;
@@ -153,6 +158,8 @@ TEST = 1
 	; Filtered output will be written here
 	APTR	ch_FilterOutputBufferA
 	APTR	ch_FilterOutputBufferB
+	UWORD	ch_FilterOutputPeriod
+	UWORD	ch_FilterOutputLength
 	LABEL	ch_SIZEOF
 
 
@@ -190,15 +197,49 @@ TEST = 1
 
 main
 	lea	_PlaySidBase,a6
-    	move.l	#ch1,psb_Chan1(a6)    
+	st	psb_FilterEnabled(a6)
+   	move.l	#ch1,psb_Chan1(a6)    
     	move.l	#ch2,psb_Chan2(a6)    
     	move.l	#ch3,psb_Chan3(a6)    
     	jsr	initializeFilter
+	jsr	resetChannelFilterStates
 
-        move.b  #1,psb_FilterType(a6)
-    	move.b  #15,psb_FilterResonance(a6)
+   	move.b  #1,psb_FilterType(a6)
+	move.b  #15,psb_FilterResonance(a6)
     	move.b  #18,psb_FilterFreq(a6)
-    	jsr     calcFilter
+
+    	jsr     calcFilterFPU
+	jsr	resetChannelFilterStatesFPU
+	move.l	psb_Chan1(a6),a1
+	move	#$44,d0
+	jsr	filterFPU
+	move	#$44,d0
+	jsr	filterFPU
+	move	#$44,d0
+	jsr	filterFPU
+	move	#$44,d0
+	jsr	filterFPU
+	move	#$44,d0
+	jsr	filterFPU
+	move	#$44,d0
+	jsr	filterFPU
+; 0,2,4,7,b,e
+    	jsr     calcFilterFixedPoint
+	jsr	resetChannelFilterStatesFixedPoint
+	move.l	psb_Chan1(a6),a1
+	move	#$44,d0
+	jsr	filterFixedPoint
+	move	#$44,d0
+	jsr	filterFixedPoint
+	move	#$44,d0
+	jsr	filterFixedPoint
+	move	#$44,d0
+	jsr	filterFixedPoint
+	move	#$44,d0
+	jsr	filterFixedPoint
+	move	#$44,d0
+	jsr	filterFixedPoint
+	rts
 
 	fmove.s	fr,fp0
 	fmul.s	#1000,fp0
@@ -227,6 +268,7 @@ main
 	fmove.s	psb_FilterG2(a6),fp4
 	fmul.s	#1000,fp4
 	fmove.l	fp4,d6
+
     	rts
 
     section testData,bss
@@ -302,8 +344,33 @@ resetFilterVariables:
 * in:
 *    a6 = PlaySidBase
 resetChannelFilterStates:
-    fmovecr  #$f,fp0 * zero constant
-    move.l	psb_Chan1(a6),a2
+  ifne USE_FIXED_POINT
+ 	bra.b	resetChannelFilterStatesFixedpoint
+  else
+ 	bra.b	resetChannelFilterStatesFPU  	
+  endif
+
+resetChannelFilterStatesFixedPoint
+   	move.l	psb_Chan1(a6),a2
+	clr.l   ch_Xn1(a2)
+	clr.l   ch_Xn2(a2)
+	clr.l   ch_Yn1(a2)
+	clr.l   ch_Yn2(a2)
+	move.l	psb_Chan2(a6),a2
+	clr.l   ch_Xn1(a2)
+	clr.l   ch_Xn2(a2)
+	clr.l   ch_Yn1(a2)
+	clr.l   ch_Yn2(a2)
+	move.l	psb_Chan3(a6),a2
+	clr.l   ch_Xn1(a2)
+	clr.l   ch_Xn2(a2)
+	clr.l   ch_Yn1(a2)
+	clr.l   ch_Yn2(a2)
+    	rts
+
+resetChannelFilterStatesFPU
+	fmovecr  #$f,fp0 * zero constant
+    	move.l	psb_Chan1(a6),a2
 	fmove.s	fp0,ch_Xn1(a2)
 	fmove.s	fp0,ch_Xn2(a2)
 	fmove.s	fp0,ch_Yn1(a2)
@@ -318,7 +385,7 @@ resetChannelFilterStates:
 	fmove.s	fp0,ch_Xn2(a2)
 	fmove.s	fp0,ch_Yn1(a2)
 	fmove.s	fp0,ch_Yn2(a2)
-    rts
+	rts
 
 * in:
 *    a6 = PlaySidBase
@@ -330,11 +397,16 @@ calcFilter:
 .yes
     movem.l d0-d2/a0,-(sp)
     ;move    #$ff0,$dff180
-    bsr.b   .do
+  ifne USE_FIXED_POINT
+    bsr     calcFilterFixedPoint
+  else
+    bsr     calcFilterFPU
+  endif
     ;move    #$000,$dff180
     movem.l (sp)+,d0-d2/a0
     rts
-.do
+
+calcFilterFPU
     * Usage: d0,d1,a0,fp0-fp7
 
     move.b  psb_FilterType(a6),d0
@@ -745,6 +817,38 @@ calcFilter:
     fmove.s fp4,psb_FilterAmpl(a6)
     rts
     
+calcFilterFixedPoint  
+    bsr   calcFilterFPU
+
+    * TODO. Test version
+
+    move.l    #1<<FP_SHIFT,d0
+   
+    fmove.s   psb_FilterAmpl(a6),fp0
+    fmul.l    d0,fp0
+    fmove.l   fp0,d1
+    fmove.l   fp0,psb_FilterAmpl(a6)
+   
+    fmove.s   psb_FilterD1(a6),fp0
+    fmul.l    d0,fp0
+    fmove.l   fp0,d1
+    fmove.l   fp0,psb_FilterD1(a6)
+   
+    fmove.s   psb_FilterD2(a6),fp0
+    fmul.l    d0,fp0
+    fmove.l   fp0,d1
+    fmove.l   fp0,psb_FilterD2(a6)
+   
+    fmove.s   psb_FilterG1(a6),fp0
+    fmul.l    d0,fp0
+    fmove.l   fp0,d1
+    fmove.l   fp0,psb_FilterG1(a6)
+   
+    fmove.s   psb_FilterG2(a6),fp0
+    fmul.l    d0,fp0
+    fmove.l   fp0,d1
+    fmove.l   fp0,psb_FilterG2(a6)
+    rts
 
 * PAL clock = 3546895
 * playback frequency in Hz: freq=clock/period
@@ -777,7 +881,11 @@ filterChannel:
     move.l  d0,a0
 .loop
     move.b  (a0)+,d0
-    bsr.b   filter
+ ifne USE_FIXED_POINT
+    bsr.b   filterFixedPoint
+ else
+    bsr.b   filterFPU
+ endif
     move.b  d0,(a2)+
     dbf     d1,.loop
     movem.l (sp)+,d0-a6
@@ -791,22 +899,15 @@ filterChannel:
 *   a6 = PlaySidBase
 * out:
 *   d0 = fitered output byte
-filter:
-  
+filterFPU:
     ; fp0 = xn
     ; fp1 = yn
 
-    ; this assumes a 16-bit input?
-
     ;float xn = float(sum_output_filter_left) * sid.f_ampl;	
  
-    ;ext.w   d0
-    ;asl.w   #7,d0
-    ;fmove.w  d0,fp0
     fmove.b  d0,fp0
-
     fmul.s   psb_FilterAmpl(a6),fp0
-
+    
     ;float yn = xn + sid.d1 * sid.xn1_l 
     ;              + sid.d2 * sid.xn2_l 
     ;              - sid.g1 * sid.yn1_l 
@@ -844,9 +945,66 @@ filter:
     move.l   ch_Yn1(a1),ch_Yn2(a1)
     fmove.s  fp1,ch_Yn1(a1)
 
-    ;fmove.w fp1,d0
-    ;asr.w   #8,d0
     fmove.b  fp1,d0
+    rts
+
+
+* in:
+*   d0 = input byte
+*   a1 = ch structure
+*   a6 = PlaySidBase
+* out:
+*   d0 = fitered output byte
+filterFixedPoint:
+
+    moveq   #FP_SHIFT,d7
+  
+    ;lsl.w   #8,d0
+    ;ext.l   d0
+    extb   d0
+    asl.l    #8,d0
+
+    ;float yn = xn + sid.d1 * sid.xn1_l 
+    ;              + sid.d2 * sid.xn2_l 
+    ;              - sid.g1 * sid.yn1_l 
+    ;              - sid.g2 * sid.yn2_l;
+    ;sum_output_filter_left = int32(yn);
+    ;sid.yn2_l = sid.yn1_l; 
+    ;sid.yn1_l = yn; 
+    ;sid.xn2_l = sid.xn1_l;
+    ;sid.xn1_l = xn;
+   
+    ;float xn = float(sum_output_filter_left) * sid.f_ampl;	
+    move.l   psb_FilterAmpl(a6),d2
+    muls.l   d0,d2
+    ; yn = xn + sid.d1 * sid.xn1_l
+    move.l   psb_FilterD1(a6),d3
+    muls.l   ch_Xn1(a1),d3 
+    add.l    d2,d3
+    ; + sid.d2 * sid.xn2_l 
+    move.l   psb_FilterD2(a6),d4
+    muls.l   ch_Xn2(a1),d4
+    add.l    d4,d3
+    ; - sid.g1 * sid.yn1_l
+    move.l   psb_FilterG1(a6),d4
+    muls.l   ch_Yn1(a1),d4
+    sub.l    d4,d3
+    ;- sid.g2 * sid.yn2_l;
+    move.l   psb_FilterG2(a6),d4
+    muls.l   ch_Yn2(a1),d4
+    sub.l    d4,d3
+
+    * Keep two previous values
+    move.l   ch_Xn1(a1),ch_Xn2(a1)
+    asr.l    d7,d2
+    move.l   d2,ch_Xn1(a1)
+
+    move.l   ch_Yn1(a1),ch_Yn2(a1)
+    asr.l    d7,d3
+    move.l   d3,ch_Yn1(a1)
+
+    move.l   d3,d0
+    asr.l    #8,d0
     rts
 
 
@@ -866,3 +1024,9 @@ initializeFilter:
     cmp     #256,d0
     bne.b   .loop    
     rts
+
+  ifne USE_FIXED_POINT
+    section filterParams,data
+filterParameters:
+    incbin "filter_parameters.bin"
+  endif
