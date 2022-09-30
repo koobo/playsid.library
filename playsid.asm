@@ -4311,10 +4311,19 @@ level4H1Ring
 .1
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRing
-		printt "TODO"
-		;move	#$00f,$dff180
+
+		tst.b	ch_FilterEnabled(a1)
+		bne.b	.4
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
+		rts
+.4
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
+		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
 		rts
 
 *-----------------------------------------------------------------------*
@@ -4344,11 +4353,19 @@ level4H1RSync
 .1
 		move.w	#INTF_AUD0,INTREQ(a0)
 		bsr	GetNextRSync
-		printt "TODO"
-		;move	#$00f,$dff180
 
+		tst.b	ch_FilterEnabled(a1)
+		bne.b	.4
 		move.l	a5,AUD0LC(a0)
 		move.w	d0,AUD0LEN(a0)
+		rts
+
+.4		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBufferA(a1),AUD0LC(a0)
+		move.w	ch_FilterOutputLength(a1),AUD0LEN(a0)
 		rts
 
 *-----------------------------------------------------------------------*
@@ -4443,11 +4460,19 @@ level4H2Ring
 .1
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRing
-		printt "TODO"
-		;move	#$00f,$dff180
+		tst.b	ch_FilterEnabled(a1)
+		bne.b	.4
 
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
+		rts
+.4
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
+		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
 		rts
 
 *-----------------------------------------------------------------------*
@@ -4477,12 +4502,19 @@ level4H2RSync
 .1
 		move.w	#INTF_AUD1,INTREQ(a0)
 		bsr	GetNextRSync
-		printt "TODO"
-		;move	#$00f,$dff180
+		tst.b	ch_FilterEnabled(a1)
+		bne.b	.4
 		move.l	a5,AUD1LC(a0)
 		move.w	d0,AUD1LEN(a0)
 		rts
-
+.4
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBufferA(a1),AUD1LC(a0)
+		move.w	ch_FilterOutputLength(a1),AUD1LEN(a0)
+		rts
 *-----------------------------------------------------------------------*
 level4Handler3	move.l	ch_ProgPointer(a1),a5
 		jmp	(a5)
@@ -4574,13 +4606,20 @@ level4H3Ring
 .1
 		move.w	#INTF_AUD2,INTREQ(a0)
 		bsr	GetNextRing
-		printt "TODO"
-		;move	#$00f,$dff180
+		tst.b	ch_FilterEnabled(a1)
+		bne.b	.4
 
 		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
 		rts
-
+.4
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBufferA(a1),AUD2LC(a0)
+		move.w	ch_FilterOutputLength(a1),AUD2LEN(a0)
+		rts
 *-----------------------------------------------------------------------*
 level4H3RSync
 		move.w	#INTF_AUD2,INTREQ(a0)
@@ -4608,9 +4647,18 @@ level4H3RSync
 .1
 		move.w	#INTF_AUD2,INTREQ(a0)
 		bsr	GetNextRSync
-		printt "TODO"
+		tst.b	ch_FilterEnabled(a1)
+		bne.b	.4
 		move.l	a5,AUD2LC(a0)
 		move.w	d0,AUD2LEN(a0)
+		rts
+.4
+		move	d0,d1
+		add		d1,d1
+		move.l	a5,d0
+		jsr		filterChannel
+		move.l	ch_FilterOutputBufferA(a1),AUD2LC(a0)
+		move.w	ch_FilterOutputLength(a1),AUD2LEN(a0)
 		rts
 
 *-----------------------------------------------------------------------*
