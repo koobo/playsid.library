@@ -14,7 +14,7 @@ PLAYSID_LIBDEFS_I SET  1
 ;************************************************************************
 
 PSIDLIB_VERSION		equ	1
-PSIDLIB_REVISION	equ	2
+PSIDLIB_REVISION	equ	1
 
 PSIDLIB_NAME	MACRO
 		dc.b	"playsid.library",0
@@ -177,7 +177,7 @@ FREE		MACRO
 	UBYTE	psb_FilterType ; SID filter type
 	UBYTE	psb_FilterFreq ; SID filter frequency (upper 8 bits)
 	UBYTE	psb_FilterResonance ; SID Filter resonance (0..15)
-	UBYTE   psd_pad1
+	UBYTE   psb_FilterEnabled 
 	ULONG	psb_FilterAmpl ; IIR filter input attenuation
 	ULONG	psb_FilterD1 ; IIR filter coefficients
 	ULONG	psb_FilterD2 ; IIR filter coefficients
@@ -301,7 +301,10 @@ EM_QUIET	equ	$0080	;Quiet - gate off
 	ULONG	ch_Yn1
 	ULONG	ch_Yn2
 	; Filtered output will be written here
-	APTR	ch_FilterOutputBuffer
+	APTR	ch_FilterOutputBufferA
+	APTR	ch_FilterOutputBufferB
+	UWORD	ch_FilterOutputPeriod
+	UWORD	ch_FilterOutputLength
 	LABEL	ch_SIZEOF
 
 ; --- Channel Audio IRQ Types ---------------------------------------------
