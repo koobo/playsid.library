@@ -1010,10 +1010,6 @@ getSidChipVersion:
     rts
 
 
-sid2Enabled:
-    tst.w  psb_Sid2Address(a6)
-    rts
-
 * Valid only after the emulated C64 code has set the timer values.
 @GetSongSpeed
         moveq   #0,d0
@@ -9026,7 +9022,7 @@ allocResidMemory:
     move.l  a0,bufferMemoryPtr
     move.l  a0,a2
     lea     sidBufferAHi(pc),a1
-    moveq   #8-1,d0
+    moveq   #12-1,d0    * set 12 bufs
 .1  move.l  a0,(a1)+
     lea     SAMPLE_BUFFER_SIZE(a0),a0
     dbf     d0,.1
@@ -9422,11 +9418,17 @@ residWorkerEntryPoint
     rts
 
 residSetVolume:
-  ifne ENABLE_14BIT
-    move    #64,$a8+$dff000
-    move    #1,$d8+$dff000
-    move    #64,$b8+$dff000
-    move    #1,$c8+$dff000
+  ifne ENABLE_14BIT 
+    move    #64,$a8+$dff000 * ch1 left
+    move    #1,$d8+$dff000  * ch4 left
+    move    #64,$b8+$dff000 * ch2 right
+    move    #1,$c8+$dff000  * ch3 right
+
+    tst.w   psb_Sid3Address(a6)
+    beq     .no3
+    move    #64,$c8+$dff000
+.no3
+
   else
     move    #64,$a8+$dff000
     move    #0,$d8+$dff000
@@ -9575,6 +9577,9 @@ switchAndFillBuffer:
     rts
 
 .sid2
+    tst.w   psb_Sid3Address(a6)
+    bne    .sid3
+
     basereg sidBufferAHi,a0
     * Swap SID buffers A and B
     movem.l sidBufferAHi(a0),d0/d1/a1/a2/a3/a4/a5/a6
@@ -9619,6 +9624,74 @@ switchAndFillBuffer:
     move    d0,$b4+$dff000   * words
     move    d0,$c4+$dff000   * words
     rts
+
+* Three SIDs
+* SID 1: paula 0 + 1, 14-bit
+* SID 2: paula 2, 8-bit
+* SID 3: paula 3, 8-bit
+.sid3
+    basereg sidBufferAHi,a0
+    * Swap SID buffers A and B
+    movem.l sidBufferAHi(a0),d0/d1/a1/a2/a3/a4/a5/a6
+    movem.l d0/d1,sidBufferBHi(a0)
+    movem.l a1/a2,sidBufferAHi(a0)
+
+    * Swap SID2 buffers A and B
+    movem.l a3/a4,sid2BufferBHi(a0)
+    movem.l a5/a6,sid2BufferAHi(a0)
+
+    move.l  a1,$a0+$dff000  * ch1 left: SID 1 high
+    move.l  a2,$d0+$dff000  * ch4 left: SID 1 low
+    move.l  a3,$b0+$dff000  * ch2 right: SID 2 high
+
+     * Swap SID3 buffers A and B
+    movem.l sid3BufferAHi(a0),d0/d1/a1/a2
+    movem.l d0/d1,sid3BufferBHi(a0)
+    movem.l a1/a2,sid3BufferAHi(a0)
+
+    move.l  a1,$c0+$dff000  * ch3 right: SID 3 high
+
+    endb    a0
+ 
+    ; SID 1
+
+    movem.l sidBufferAHi(pc),a1/a2
+    move.l  cyclesPerFrame(pc),d0
+    * buffer size limit
+    move.l  #SAMPLE_BUFFER_SIZE,d1
+    move.l  clockRoutine(pc),a3
+    lea     residData,a0
+    jsr     (a3)
+
+    ; SID 2
+
+    movem.l sid2BufferBHi(pc),a1/a2
+    move.l  cyclesPerFrame(pc),d0
+    * buffer size limit
+    move.l  #SAMPLE_BUFFER_SIZE,d1
+    move.l  clockRoutine(pc),a3
+    lea     residData2,a0
+    jsr     (a3)
+
+    ; SID 3
+
+    movem.l sid3BufferBHi(pc),a1/a2
+    move.l  cyclesPerFrame(pc),d0
+    * buffer size limit
+    move.l  #SAMPLE_BUFFER_SIZE,d1
+    move.l  clockRoutine(pc),a3
+    lea     residData3,a0
+    jsr     (a3)
+
+    * d0 = bytes received, make words
+    * rounds down, so may discard one byte
+    lsr     #1,d0
+    move    d0,$a4+$dff000   * words
+    move    d0,$d4+$dff000   * words
+    move    d0,$b4+$dff000   * words
+    move    d0,$c4+$dff000   * words
+    rts
+
 
 
 
@@ -9934,6 +10007,10 @@ sid2BufferAHi     dc.l    0
 sid2BufferALo     dc.l    0
 sid2BufferBHi     dc.l    0
 sid2BufferBLo     dc.l    0
+sid3BufferAHi     dc.l    0
+sid3BufferALo     dc.l    0
+sid3BufferBHi     dc.l    0
+sid3BufferBLo     dc.l    0
 
 mainTask          dc.l    0
 residWorkerTask:  dc.l    0
@@ -10226,7 +10303,6 @@ ahiSwitchAndFillMiddleBuffer:
     jsr     (a3)
     move.l  _PlaySidBase,a6
     move.l  d0,psb_AhiSamplesOutMiddle(a6)
-    move    #$0f0,$dff180
 .x
     rts
 
