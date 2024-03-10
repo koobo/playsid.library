@@ -74,7 +74,7 @@ SAMPLE_BUFFER_SIZE = 600
 * Enable debug colors
 DEBUG = 1
 SERIALDEBUG = 1
-COUNTERS = 1
+COUNTERS = 0
 
 * When playing samples with reSID scale ch4 volume with this factor
 * to get it to reSID levels
@@ -8995,6 +8995,12 @@ mulu_64
 
 
 
+* Allocate audio buffers
+* Two 8-bit buffers per 14-bit channel per SID
+* Times two for double buffering
+* Times three for three SIDs
+RESID_BUFFERS_SIZE=(SAMPLE_BUFFER_SIZE)*2*2*3
+
 * Out:
 *    d0 = 0: out of mem, non-1: ok
 allocResidMemory:
@@ -9003,11 +9009,7 @@ allocResidMemory:
     beq     .y
 
     move.l  a6,a0
-    * Allocate audio buffers
-    * Two per 14-bit channel
-    * Times two for double buffering
-    * Times three for two SIDs
-    move.l  #(SAMPLE_BUFFER_SIZE)*2*2*3,d0
+    move.l  #RESID_BUFFERS_SIZE,d0
   
     move.l  #MEMF_CHIP!MEMF_CLEAR,d1
     tst.l   psb_AhiMode(a6)
@@ -9076,7 +9078,7 @@ freeResidMemory:
     beq.b   .y
     move.l  (a2),a1
     clr.l   (a2)
-    move.l  #(SAMPLE_BUFFER_SIZE)*8,d0
+    move.l  #RESID_BUFFERS_SIZE,d0
     move.l  4.w,a6
     jsr     _LVOFreeMem(a6)
 .y  pop     a6
@@ -9123,20 +9125,24 @@ stopResidWorkerTask:
     movem.l d0-a6,-(sp)
     tst.l   residWorkerTask
     beq     .done
-
+    DPRINT  "a"
     move.l  4.w,a6
     moveq   #0,d0
     moveq   #SIGF_SINGLE,d1
     jsr     _LVOSetSignal(a6)
+    DPRINT  "b"
 
     ; Send a break to the worker
     move.l  residWorkerTask(pc),a1
     move.l  #SIGBREAKF_CTRL_C,d0
     jsr     _LVOSignal(a6)
+    DPRINT  "c"
+
 
     ; Wait for confirmation
     moveq   #SIGF_SINGLE,d0
     jsr     _LVOWait(a6)
+    DPRINT  "d"
 
  if COUNTERS
 
@@ -9175,6 +9181,7 @@ stopResidWorkerTask:
  endif
 
 .done 
+    DPRINT  "e"
     movem.l (sp)+,d0-a6
     rts
 
@@ -9362,11 +9369,14 @@ residWorkerEntryPoint
 
     SPRINT  "task:active"
 .loop
+    move.l  4.w,a6
     move.l  #SIGBREAKF_CTRL_C!SIGBREAKF_CTRL_D,d0
     jsr     _LVOWait(a6)
-
+    move    #$0f0,$dff180
     and.l   #SIGBREAKF_CTRL_C,d0
     bne.b   .x
+
+    SPRINT  "task:signal"
 
   ifeq ENABLE_LEV4PLAY
     push    a6
@@ -9384,7 +9394,7 @@ residWorkerEntryPoint
     beq     .notAhi2
     bsr     ahiStop
 
-    DPRINT  "task:ahi stopped"
+    SPRINT  "task:ahi stopped"
     
     move.l  4.w,a6
     jsr     _LVOForbid(a6)
@@ -10231,6 +10241,7 @@ ahiSwitchAndFillMiddleBuffer:
     jsr     (a3)
     move.l  _PlaySidBase,a6
     move.l  d0,psb_AhiSamplesOutMiddle(a6)
+    move    #$0f0,$dff180
 .x
     rts
 
@@ -10383,9 +10394,23 @@ ahiMode = *-4
 * a1	struct AHISoundMessage *
 * a2	struct AHIAudioCtrl *
 .soundFuncImpl:
-    tst.w   ahism_Channel(a1)
-    bne     .right
+    move.w  ahism_Channel(a1),d0
+    beq     .left
+    subq    #1,d0
+    beq     .right
 
+* SID 3
+.middle
+    pushm   d2-d7/a2-a6
+    move.l  _PlaySidBase,a6
+    bsr     ahiSwitchAndFillMiddleBuffer
+    moveq   #0,d4
+    bsr     ahiPlayMiddleBuffer
+    popm    d2-d7/a2-a6
+    rts
+
+* SID 1, drives the output
+.left
     pushm   d2-d7/a2-a6
     move.l  _PlaySidBase,a6
     cmp.w   #PM_PLAY,psb_PlayMode(a6)
@@ -10399,6 +10424,7 @@ ahiMode = *-4
 .y
 	rts
 
+* SID 2
 .right
     pushm   d2-d7/a2-a6
     move.l  _PlaySidBase,a6
