@@ -9125,24 +9125,19 @@ stopResidWorkerTask:
     movem.l d0-a6,-(sp)
     tst.l   residWorkerTask
     beq     .done
-    DPRINT  "a"
     move.l  4.w,a6
     moveq   #0,d0
     moveq   #SIGF_SINGLE,d1
     jsr     _LVOSetSignal(a6)
-    DPRINT  "b"
 
     ; Send a break to the worker
     move.l  residWorkerTask(pc),a1
     move.l  #SIGBREAKF_CTRL_C,d0
     jsr     _LVOSignal(a6)
-    DPRINT  "c"
-
 
     ; Wait for confirmation
     moveq   #SIGF_SINGLE,d0
     jsr     _LVOWait(a6)
-    DPRINT  "d"
 
  if COUNTERS
 
@@ -9181,7 +9176,6 @@ stopResidWorkerTask:
  endif
 
 .done 
-    DPRINT  "e"
     movem.l (sp)+,d0-a6
     rts
 
@@ -9253,6 +9247,7 @@ stopResidWorkerTask:
 
 
  endif
+
 
 * Playback task
 * Not actually used for playback at the moment since 
@@ -9372,7 +9367,6 @@ residWorkerEntryPoint
     move.l  4.w,a6
     move.l  #SIGBREAKF_CTRL_C!SIGBREAKF_CTRL_D,d0
     jsr     _LVOWait(a6)
-    move    #$0f0,$dff180
     and.l   #SIGBREAKF_CTRL_C,d0
     bne.b   .x
 
@@ -10006,6 +10000,7 @@ ahiInit:
     beq	.ahi_error	
 	move.l	d0,a6
 
+
     lea     ahiChannels(pc),a0
     move.l  #1,(a0)
     tst.w   psb_Sid2Address(a5)
@@ -10015,6 +10010,10 @@ ahiInit:
     beq     .mm
     addq.l  #1,(a0)
 .mm
+ if DEBUG
+    move.l  (a0),d0
+    DPRINT  "AHI channels=%ld"
+ endif
 
 	lea	ahiTags(pc),a1
 	jsr	_LVOAHI_AllocAudioA(a6)
@@ -10070,20 +10069,6 @@ ahiInit:
     DPRINT  "LoadSound=%lx"
 	tst.l	d0
 	bne	.ahi_error
-
-
-;	move.l	ahiMode(pc),d0
-;	lea	getattr_tags(pc),a1
-;	jsr	_LVOAHI_GetAudioAttrsA(a6)
-;    DPRINT  "GetAudioAttrs=%lx"
-;    move.l  attr_stereo,d0
-;    DPRINT  "stereo=%ld"
-;    move.l  attr_panning,d0
-;    DPRINT  "panning=%ld"
-
-;	bsr	ahi_setmastervol
-;	move	mainvolume+var_b(pc),d0
-;	bsr	vol
 
 
     ; ---------- Frequency ch1
@@ -10376,7 +10361,7 @@ ahiTags
 	dc.l	AHIA_MixFreq,PLAYBACK_FREQ
 	dc.l	AHIA_Channels,2
 ahiChannels = *-4
-	dc.l	AHIA_Sounds,4
+	dc.l	AHIA_Sounds,6 * For 3 SIDs
 	dc.l	AHIA_AudioID,$20004	; paula 8-bit stereo
 ahiMode = *-4
 
@@ -10398,6 +10383,9 @@ ahiMode = *-4
     beq     .left
     subq    #1,d0
     beq     .right
+    subq    #1,d0
+    beq     .middle
+    rts
 
 * SID 3
 .middle
