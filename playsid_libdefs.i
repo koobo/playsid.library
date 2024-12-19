@@ -202,6 +202,9 @@ FREE		MACRO
     ULONG   psb_AhiBankMiddle
     ULONG   psb_AhiSamplesOutMiddle
     APTR    psb_ZorroSIDBase
+    UWORD   psb_Envelope1
+    UWORD   psb_Envelope2
+    UWORD   psb_Envelope3
 	LABEL	psb_SIZEOF
 
 ; --- Error --------------------------------------------------------------
