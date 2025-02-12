@@ -2,11 +2,11 @@
 *=======================================================================*
 *                                                                       *
 *       C64 MUSIC EMULATOR FOR AMIGA                                    *
-*       (C) 1990-1994 HÅKAN SUNDELL & RON BIRK                          *
+*       (C) 1990-1994 H?KAN SUNDELL & RON BIRK                          *
 *                                                                       *
 *=======================================================================*
 
-This version of playsid.library provides three different sound
+This version of playsid.library provides several different sound
 output methods:
 
 - The original SID emulation by Per Sundell & Ron Birk (kick 1.3, 68000)
@@ -51,9 +51,9 @@ reSID
 reSID provides an accurate, cycle exact emulation of both the 6581 
 and the 8580 SID chips, with filter support. 
 
-reSID is very heavy on the CPU. Depending on the tune and settings, 
-it will use half or more of the available CPU power on an A1200 with a 
-50MHz 68060. An FPU is not required.
+reSID is very heavy on the CPU. CPU usage depends on the tune
+and settings. 68060@50MHz should work fine, 68040@40MHz 
+is also usable with some tunes and settings. An FPU is not required.
 
 In reSID mode the library is able to play stereo SIDs (2SID),
 outputting six SID channels, and 3SIDs with 9 SID channels.
@@ -74,9 +74,6 @@ The sound is output using the Paula 14-bit mode, except in 3SID
 mode where SID 2 and SID 3 are output in 8-bit.
 AHI output is available, too.
 
-'setenv PlaySIDDebug 1' will enable reSID raster bar CPU measurement visual, 0
-will disable it.
-
 reSID v0.16 Amiga port and integration by K-P
 
 
@@ -85,6 +82,8 @@ SIDBlaster / USBSID-Pico
 
 SIDBlaster & USBSID-Pico are USB devices that can utilize an actual SID chip
 and allow playback using it, providing a truly authentic sound. 
+
+2SID/3SID playback is possible by connecting multiple devices and SIDs.
 
 In addition to some extra hardware and USB connectivity, 
 the Poseidon USB stack needs to be installed. 
@@ -119,9 +118,9 @@ is not usable with ZorroSID.
 
 Changelog
 ---------
-- 2022-10: Initial version, reSID v0.16
-- 2022-11: SIDBlaster support, new reSID sampling modes, 
-           reSID speed optimizations, some fixes
+- 2022-10:  - Initial version, reSID v0.16
+- 2022-11:  - SIDBlaster support, new reSID sampling modes, 
+              reSID speed optimizations, some fixes
 - 2022-11-19: Fix bug where playback would get stuck for a while, 
               example tune: JCH/Hawaii
 - 2023-02   - Added support for 2SIDs, stereo SIDs with 6 audio
@@ -154,7 +153,12 @@ Changelog
               SIDs 2 and 3 use 8-bit outputs.        
             - Some reSID speed optimizations, about 18% faster on
               68060 than before. 
-- 2024-11   - Support for ZorroSID
-  v1.8
 - 2025-02   - Support for USBSID-Pico
   v1.9      - Support for 2SID and 3SID via multiple SIDBlasters
+            - Support for ZorroSID
+            - Fix reSID Auto mode not selecting the chip 
+              version correctly.
+            - reSID compatibility improvements, helps at least with:
+               - Aliens by Paul Clansey 
+               - Vangelis Is Not Dead by Martin Demsky
+               - Timewarp Spheres 2SID by F7sus4
