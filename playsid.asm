@@ -437,6 +437,7 @@ GetEnvSettingsPre:
     bsr     GetEnvResidMode
     bsr     GetEnvResidAhi
     bsr     GetEnvDebugMode
+    bsr     GetEnvZorroSID
     lea     64(sp),sp
     rts
 
@@ -638,6 +639,17 @@ GetEnvDebugMode:
     move    #1,psb_Debug(a6)
     rts
 
+GetEnvZorroSID:
+    lea     EnvZorroSID(pc),a0
+    lea     (a4),a1
+    bsr     GetEnvVarString
+    bmi     .x
+    lea     (a4),a0
+    bsr     convertHexTextToNumber    
+    DPRINT  "ZorroSID=%lx"
+    move.l  d0,psb_ZorroSIDBase(a6)
+.x  rts
+
 ; Called before AllocEmulResource:
 ; - SetOperatingMode
 ; - SetRESIDMode
@@ -654,6 +666,7 @@ EnvResidAHI     dc.b    "PlaySIDreSIDAHI",0       ; 00000000 (hex)
 EnvResidBoost   dc.b    "PlaySIDreSIDBoost",0     ; 0,1,2,3,4
 EnvResidFilter  dc.b    "PlaySIDreSIDFilter",0    ; onIn,on,off
 EnvDebugMode    dc.b    "PlaySIDDebug",0          ; on,off
+EnvZorroSID     dc.b    "PlaySIDZorroSID",0       ; 00000000 (hex)
                 even
 * In:
 *  a0 = name
@@ -708,8 +721,8 @@ get4:
 * out: 
 *   d0 = number or NULL if error
 convertHexTextToNumber:
-  move.l a0,d0
-   DPRINT "hex=%s"
+    move.l a0,d0
+    DPRINT "hex=%s"
 	moveq	#8-1,d2
 	moveq	#32-4,d1
 	moveq	#0,d0
@@ -5591,9 +5604,14 @@ init_zorrosid:
     DPRINT  "init_zorrosid"
     move.l  a6,-(sp)
     
+    * Default ZorroSID address
     ;lea     $A00000,a3
-    lea     $EE0000,a3
-    move.l  a3,psb_ZorroSIDBase(a6)
+    lea     $EE0000,a3        
+    move.l  psb_ZorroSIDBase(a6),d3
+    beq     .z
+    move.l  d3,a3
+.z  move.l  a3,psb_ZorroSIDBase(a6)
+
     moveq   #0,d3
     
     move.l  4.w,a6
