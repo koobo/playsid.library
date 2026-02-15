@@ -365,8 +365,9 @@ AutoInitFunction
         bne.b   .noUsb
 .doUsb
         bsr     start_sid_usb
+        
         tst.b   d0
-        bne     .Exit
+        bne     .usbError
 .noUsb
 
         bsr	    AllocEmulMem
@@ -412,6 +413,12 @@ AutoInitFunction
 		;CALLEXEC Permit
 		rts
 
+.usbError:  
+        moveq   #SID_NOSIDBLASTER,d0
+        cmp.w   #OM_SIDBLASTER_USB,psb_OperatingMode(a6)
+        beq     .Exit
+        moveq   #SID_NOUSBSIDPICO,d0
+        bra     .Exit
 
 _DOSName:
     dc.b    "dos.library",0
