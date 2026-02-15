@@ -15,14 +15,14 @@ PLAYSID_LIBDEFS_I SET  1
 	include "git.gen.i"
 
 PSIDLIB_VERSION		equ	1
-PSIDLIB_REVISION	equ	10
+PSIDLIB_REVISION	equ	11
 
 PSIDLIB_NAME	MACRO
 		dc.b	"playsid.library",0
 		ENDM
 
 PSIDLIB_IDSTRING MACRO
-		dc.b	"playsid.library 1.10 (May 2025) reSID+SIDBlaster+ZorroSID+USBSID-Pico (git:"
+		dc.b	"playsid.library 1.11 (? 2026) reSID+SIDBlaster+ZorroSID+USBSIDPico+Trinity (git:"
 		GIT
 		dc.b	")",13,10,0
 		ENDM
@@ -211,6 +211,8 @@ FREE		MACRO
     UWORD   psb_Envelope7
     UWORD   psb_Envelope8
     UWORD   psb_Envelope9
+    APTR    psb_TntBase
+    APTR    psb_TntCore
 	LABEL	psb_SIZEOF
 
 ; --- Error --------------------------------------------------------------
@@ -228,6 +230,7 @@ SID_LIBINUSE      equ -11
 SID_NOSIDBLASTER  equ -12
 SID_ZORROSIDINVALID equ -13
 SID_NOUSBSIDPICO  equ -14
+SID_NOTRINITY    equ -15
 
 ; --- Playing Modes ------------------------------------------------------
 PM_STOP		equ	0
@@ -247,6 +250,7 @@ OM_RESID_AUTO     equ 3
 OM_SIDBLASTER_USB equ 4
 OM_ZORROSID       equ 5
 OM_USBSID_PICO    equ 6
+OM_TRINITY        equ 7
 
 ; --- reSID Modes -----------------------------------------------------
 REM_NORMAL         equ 0
