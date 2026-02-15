@@ -349,7 +349,14 @@ AutoInitFunction
         move.l  d0,psb_DOSBase(a5)
         move.l  a5,a6
         bsr     GetEnvSettingsPre
-       
+
+        cmp.w   #OM_TRINITY,psb_OperatingMode(a6)
+        bne.b   .noTrinity
+        bsr     init_trinity
+        tst.l   d0
+        bne     .Exit
+.noTrinity
+
         cmp.w   #OM_ZORROSID,psb_OperatingMode(a6)
         bne.b   .noZorroSid
         bsr     init_zorrosid
@@ -480,6 +487,8 @@ GetEnvMode:
     beq     .6
     cmp.l   #"usbp",d0
     beq     .7
+    cmp.l   #"trin",d0
+    beq     .8
     bra     .1 * default
 .x  rts
 
@@ -516,6 +525,11 @@ GetEnvMode:
 .7
     DPRINT  "PlaySIDMode=USBSID-Pico"
     moveq   #OM_USBSID_PICO,d0
+    bsr     @SetOperatingMode
+    rts
+.8
+    DPRINT  "PlaySIDMode=Trinity"
+    moveq   #OM_TRINITY,d0
     bsr     @SetOperatingMode
     rts
 
@@ -773,6 +787,7 @@ convertHexTextToNumber:
 
         ; Safe to call even if not initialized:
         bsr     stop_sid_usb
+        bsr     stop_trinity
 
         ; Not safe if initRESID has not been called earlier:    
         bsr     isResidActive
@@ -5356,6 +5371,8 @@ writeSIDRegister:
     * Normal playsid mode
     rts
 .out
+    cmp.w   #OM_TRINITY,psb_OperatingMode(a2)
+    beq     write_trinity_reg
     cmp.w   #OM_ZORROSID,psb_OperatingMode(a2)
     beq     write_zorrosid_reg
 
@@ -5699,6 +5716,145 @@ mute_zorrosid:
     movem.l	(sp)+,d6/d7
 	rts
 
+*-----------------------------------------------------------------------*
+* Trinity
+
+_LVOTrinityFind         EQU   -30
+_LVOEnumAudioCore       EQU   -36
+_LVOOpenAudioCore       EQU   -42
+_LVOCloseAudioCore      EQU   -48
+_LVOWriteCoreRegisters  EQU   -54
+
+init_trinity:
+    bsr     openTnt
+    bne.b   .ok
+    moveq   #SID_NOTRINITY,d0
+    rts
+.ok 
+    moveq   #0,d0
+    rts
+
+mute_trinity:
+    cmp.w   #OM_TRINITY,psb_OperatingMode(a6)
+    bne.b   .1
+    * TODO (like mute_zorrosid maybe)
+    nop
+.1
+    rts
+
+* in:
+*    d6 = data
+*    d7 = address
+write_trinity_reg:
+    movem.l d0-a6,-(sp)
+    move.l  psb_TntCore(a6),a0
+    move.l  psb_TntBase(a6),a6
+    * Two TrinityRegData8 structs
+    clr.l   -(sp)      
+    move.b  d7,(sp)     * RegIdx
+    move.b  d6,1(sp)    * RegData
+    move.w  #-1,2(sp)   * terminate
+    move.l  sp,a1
+    jsr     _LVOWriteCoreRegisters(a6)
+    addq    #4,sp
+    movem.l (sp)+,d0-a6
+    rts
+
+openTnt:
+    DPRINT  "openTnt"
+
+    move.l  a6,a5
+    move.l  psb_TntBase(a5),d0
+    bne.b   .1
+    lea     tntName(pc),a1
+    moveq   #1,d0               * LIB_VERSION
+    move.l  4.w,a6
+    jsr     _LVOOpenLibrary(a6)
+    DPRINT  "TntBase=%lx"
+    move.l  d0,psb_TntBase(a5)
+    beq.b   .x
+.1  move.l  d0,a6
+
+    tst.l   psb_TntCore(a5)
+    bne.b   .ok
+
+    jsr     _LVOTrinityFind(a6)
+    DPRINT  "Find=%lx"
+    tst.l   d0
+    beq.b   .x
+
+    move.l  #"SID1",d7      * TODO
+    bsr     .findCore
+    DPRINT  "findCore=%lx"
+    tst.l   d0
+    beq.b  .x
+
+    move.l  d7,d0
+    jsr     _LVOOpenAudioCore(a6)
+    DPRINT  "OpenAudioCore=%lx"
+    move.l  d0,psb_TntCore(a5)
+.ok
+    moveq   #1,d0   * ok
+.x
+    move.l  a5,a6
+    rts
+
+* In:
+*   d5 = Trinity base (not library)
+*   d7 = Id to find
+* Out:
+*   d6 = NULL, or address if found
+.findCore:
+    moveq   #0,d6       * result
+    lea     -256(sp),sp
+    clr.l   (sp)        * index: zero
+.loopEnum
+    move.l  sp,a0       * pointer to index
+    moveq   #-1,d0      * flags, anything goes
+    lea     4(sp),a1    * pointer to TrinityAudioInfo, space=252
+    jsr     _LVOEnumAudioCore(a6)
+    DPRINT  "Enum=%lx"
+    tst.l   d0
+    beq.b   .out
+    lea     4(sp),a0    * TrinityAudioInfo into a0
+ if DEBUG
+    clr.l   -(sp)
+    clr.l   -(sp)
+    move.l  (a0),(sp)
+    move.l  sp,d0
+    DPRINT  "Id=%s"
+    addq    #8,sp
+ endif
+    cmp.l   (a0),d7     * Does it match?
+    bne.b   .loopEnum
+    move.w  44(a0),d6   * Get offset and exit
+.out
+    move.l  d6,d0
+    lea     256(sp),sp
+    rts
+
+stop_trinity:
+closeTnt:
+    move.l  a6,a5
+    move.l  psb_TntBase(a5),d0
+    beq.b   .x
+    move.l  d0,a6
+    move.l  psb_TntCore(a5),d0
+    beq.b   .y
+    clr.l   psb_TntCore(a5)
+    move.l  d0,a0
+    jsr     _LVOCloseAudioCore(a6)
+.y
+    clr.l   psb_TntBase(a5)
+    move.l  a6,a1
+    move.l  4.w,a6
+    jsr     _LVOCloseLibrary(a6)
+.x  move.l  a5,a6
+    rts
+
+tntName     dc.b    "trinity.library",0
+ even
+
 *=======================================================================*
 *	INTERRUPT HANDLING ROUTINES					*
 *=======================================================================*
@@ -5972,6 +6128,7 @@ PlayDisable					;Turns off all Audio
 .1
         ; Safe to call even if not initialized:
         bsr     mute_sid_usb
+        bsr     mute_trinity
 
         cmp.w   #OM_ZORROSID,psb_OperatingMode(a6)
         beq     mute_zorrosid
@@ -6450,6 +6607,8 @@ EndOfLibrary
         cmp.w   #OM_ZORROSID,psb_OperatingMode(a6)
         beq     .3
         cmp.w   #OM_USBSID_PICO,psb_OperatingMode(a6)
+        beq     .3
+        cmp.w   #OM_TRINITY,psb_OperatingMode(a6)
         beq     .3
 
         * Allocate audio in classic mode  
