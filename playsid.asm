@@ -5765,8 +5765,9 @@ mute_trinity:
 *    d7 = address
 write_trinity_reg:
     movem.l d0-a6,-(sp)
-    move.l  psb_TntCore(a6),a0
-    move.l  psb_TntBase(a6),a6
+	move.l	_PlaySidBase,a2
+    move.l  psb_TntCore(a2),a0
+    move.l  psb_TntBase(a2),a6
     * Two TrinityRegData8 structs
     clr.l   -(sp)      
     move.b  d7,(sp)     * RegIdx
@@ -5801,55 +5802,17 @@ openTnt:
     tst.l   d0
     beq.b   .x
 
-    move.l  #"SID1",d7      * TODO
-    bsr     .findCore
-    DPRINT  "findCore=%lx"
-    tst.l   d0
-    beq.b  .x
-
-    move.l  d7,d0
+    move.l  #"SID1",d0
     jsr     _LVOOpenAudioCore(a6)
     DPRINT  "OpenAudioCore=%lx"
     move.l  d0,psb_TntCore(a5)
+    beq     .x
 .ok
     moveq   #1,d0   * ok
 .x
     move.l  a5,a6
     rts
 
-* In:
-*   d5 = Trinity base (not library)
-*   d7 = Id to find
-* Out:
-*   d6 = NULL, or address if found
-.findCore:
-    moveq   #0,d6       * result
-    lea     -256(sp),sp
-    clr.l   (sp)        * index: zero
-.loopEnum
-    move.l  sp,a0       * pointer to index
-    moveq   #-1,d0      * flags, anything goes
-    lea     4(sp),a1    * pointer to TrinityAudioInfo, space=252
-    jsr     _LVOEnumAudioCore(a6)
-    DPRINT  "Enum=%lx"
-    tst.l   d0
-    beq.b   .out
-    lea     4(sp),a0    * TrinityAudioInfo into a0
- if DEBUG
-    clr.l   -(sp)
-    clr.l   -(sp)
-    move.l  (a0),(sp)
-    move.l  sp,d0
-    DPRINT  "Id=%s"
-    addq    #8,sp
- endif
-    cmp.l   (a0),d7     * Does it match?
-    bne.b   .loopEnum
-    move.w  44(a0),d6   * Get offset and exit
-.out
-    move.l  d6,d0
-    lea     256(sp),sp
-    rts
 
 stop_trinity:
 closeTnt:
