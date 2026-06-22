@@ -5737,8 +5737,26 @@ init_trinity:
 mute_trinity:
     cmp.w   #OM_TRINITY,psb_OperatingMode(a6)
     bne.b   .1
-    * TODO (like mute_zorrosid maybe)
-    nop
+    movem.l d0-a6,-(sp)
+    moveq  	#$00,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$01,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$07,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$08,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$0e,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$0f,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    movem.l (sp)+,d0-a6
 .1
     rts
 

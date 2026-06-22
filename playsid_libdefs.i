@@ -22,7 +22,7 @@ PSIDLIB_NAME	MACRO
 		ENDM
 
 PSIDLIB_IDSTRING MACRO
-		dc.b	"playsid.library 1.11 (? 2026) reSID+SIDBlaster+ZorroSID+USBSIDPico+Trinity (git:"
+		dc.b	"playsid.library 1.11 (06-2026) reSID+SIDBlaster+ZorroSID+USBSIDPico+Trinity (git:"
 		GIT
 		dc.b	")",13,10,0
 		ENDM

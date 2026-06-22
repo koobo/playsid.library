@@ -73,6 +73,7 @@ SID_LIBINUSE	equ	-11
 SID_NOSIDBLASTER  equ -12
 SID_ZORROSIDINVALID equ -13
 SID_NOUSBSIDPICO   equ -14
+SID_NOTRINITY   equ -15
 
 ; --- Playing Modes ------------------------------------------------------
 PM_STOP		equ	0
@@ -87,6 +88,7 @@ OM_RESID_AUTO     equ 3
 OM_SIDBLASTER_USB equ 4
 OM_ZORROSID       equ 5
 OM_USBSID_PICO    equ 6
+OM_TRINITY        equ 7
 
 ; --- reSID Modes -----------------------------------------------------
 REM_NORMAL         equ 0
