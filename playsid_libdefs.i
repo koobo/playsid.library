@@ -213,6 +213,7 @@ FREE		MACRO
     UWORD   psb_Envelope9
     APTR    psb_TntBase
     APTR    psb_TntCore
+    UWORD   psb_TntVol
 	LABEL	psb_SIZEOF
 
 ; --- Error --------------------------------------------------------------

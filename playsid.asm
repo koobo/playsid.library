@@ -5768,6 +5768,18 @@ write_trinity_reg:
 	move.l	_PlaySidBase,a2
     move.l  psb_TntCore(a2),a0
     move.l  psb_TntBase(a2),a6
+
+    cmp.b   #$18,d7 * writing to mode_vol? catch it
+    bne.b   .1
+    move.b  d6,psb_TntVol(a2)
+
+    moveq   #$f,d0
+    and.b   d6,d0
+    mulu.w  psb_Volume(a2),d0
+    lsr     #6,d0
+    and.w   #$f0,d6
+    or.b    d0,d6
+.1
     * Two TrinityRegData8 structs
     clr.l   -(sp)      
     move.b  d7,(sp)     * RegIdx
@@ -5778,6 +5790,12 @@ write_trinity_reg:
     addq    #4,sp
     movem.l (sp)+,d0-a6
     rts
+
+trinity_set_volume:
+    move.b  psb_TntVol(a6),d6
+    moveq   #$18,d7     * mode_vol
+    bra.b   write_trinity_reg
+
 
 openTnt:
     DPRINT  "openTnt"
@@ -9157,6 +9175,8 @@ residData3     ds.b    resid_SIZEOF
     move    d0,psb_Volume(a6)
     bsr     isResidActive
     bne     .1
+    cmp.w   #OM_TRINITY,psb_OperatingMode(a6)
+    beq     trinity_set_volume
     rts
 .1
     * Adjust sample volume    
