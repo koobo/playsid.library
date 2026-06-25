@@ -971,7 +971,7 @@ isResidActive:
         bsr     setAutoResidMode
 
         bsr     set_num_sids
-
+        bsr     trinity_select_sid
         bsr     patchSong
 
 		;CALLEXEC Permit
@@ -5724,6 +5724,7 @@ _LVOEnumAudioCore       EQU   -36
 _LVOOpenAudioCore       EQU   -42
 _LVOCloseAudioCore      EQU   -48
 _LVOWriteCoreRegisters  EQU   -54
+_LVOWriteCoreBits       EQU   -60 ; core = a0, bits = d0
 
 init_trinity:
     bsr     openTnt
@@ -5804,7 +5805,7 @@ openTnt:
     move.l  psb_TntBase(a5),d0
     bne.b   .1
     lea     tntName(pc),a1
-    moveq   #1,d0               * LIB_VERSION
+    moveq   #2,d0               * LIB_VERSION
     move.l  4.w,a6
     jsr     _LVOOpenLibrary(a6)
     DPRINT  "TntBase=%lx"
@@ -5831,6 +5832,20 @@ openTnt:
     move.l  a5,a6
     rts
 
+trinity_select_sid:
+    movem.l d0-a6,-(sp)
+    move.l  a6,a5
+    move.l  psb_TntCore(a5),d0
+    beq.b   .x
+    move.l  d0,a0
+    move.l  psb_TntBase(a5),a6
+    moveq   #0,d0      * clear core bit 7 -> 6510
+    cmp     #%10,psb_HeaderChipVersion(a5)  * base access
+    bne.b   .1
+    move.w  #1<<7,d0   * set core bit 7 -> 8580
+.1  jsr     _LVOWriteCoreBits(a6)
+.x  movem.l (sp)+,d0-a6
+    rts
 
 stop_trinity:
 closeTnt:
