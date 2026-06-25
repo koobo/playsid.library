@@ -5765,6 +5765,9 @@ mute_trinity:
 *    d6 = data
 *    d7 = address
 write_trinity_reg:
+    cmp.b   #$20,d7     * accept SID1 writes only
+    bhs.b   .x
+
     movem.l d0-a6,-(sp)
 	move.l	_PlaySidBase,a2
     move.l  psb_TntCore(a2),a0
@@ -5774,7 +5777,7 @@ write_trinity_reg:
     bne.b   .1
     move.b  d6,psb_TntVol(a2)
 
-    moveq   #$f,d0
+    moveq   #$f,d0  * scale according to global vol setting
     and.b   d6,d0
     mulu.w  psb_Volume(a2),d0
     lsr     #6,d0
@@ -5790,6 +5793,7 @@ write_trinity_reg:
     jsr     _LVOWriteCoreRegisters(a6)
     addq    #4,sp
     movem.l (sp)+,d0-a6
+.x
     rts
 
 trinity_set_volume:
