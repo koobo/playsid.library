@@ -5757,16 +5757,43 @@ mute_trinity:
     moveq  	#$0f,d7 
     moveq  	#$00,d6
     bsr     write_trinity_reg
+    
+    ; 2nd sid
+    moveq  	#$00+$20,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$01+$20,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$07+$20,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$08+$20,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$0e+$20,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
+    moveq  	#$0f+$20,d7 
+    moveq  	#$00,d6
+    bsr     write_trinity_reg
     movem.l (sp)+,d0-a6
 .1
     rts
+
+
+trinity_set_volume:
+    move.b  psb_TntVol(a6),d6
+    moveq   #$18,d7     * mode_vol
+;    bra.b   write_trinity_reg
+
 
 * in:
 *    d6 = data
 *    d7 = address
 write_trinity_reg:
     cmp.b   #$20,d7     * accept SID1 writes only
-    bhs.b   .x
+    bhs.b   .2
 
     movem.l d0-a6,-(sp)
 	move.l	_PlaySidBase,a2
@@ -5796,11 +5823,36 @@ write_trinity_reg:
 .x
     rts
 
-trinity_set_volume:
-    move.b  psb_TntVol(a6),d6
-    moveq   #$18,d7     * mode_vol
-    bra.b   write_trinity_reg
+.2
+    movem.l d0-a6,-(sp)
+	move.l	_PlaySidBase,a2
+    move.l  psb_TntCore2(a2),d0
+    beq     .xx
+    move.l  d0,a0
+    move.l  psb_TntBase(a2),a6
 
+    sub.b   #$20,d7     * offset conversion
+
+    cmp.b   #$18,d7 * writing to mode_vol? catch it
+    bne.b   .11
+    moveq   #$f,d0  * scale according to global vol setting
+    and.b   d6,d0
+    mulu.w  psb_Volume(a2),d0
+    lsr     #6,d0
+    and.w   #$f0,d6
+    or.b    d0,d6
+.11
+    * Two TrinityRegData8 structs
+    clr.l   -(sp)      
+    move.b  d7,(sp)     * RegIdx
+    move.b  d6,1(sp)    * RegData
+    move.w  #-1,2(sp)   * terminate
+    move.l  sp,a1
+    jsr     _LVOWriteCoreRegisters(a6)
+    addq    #4,sp
+.xx
+    movem.l (sp)+,d0-a6
+    rts
 
 openTnt:
     DPRINT  "openTnt"
@@ -5830,6 +5882,10 @@ openTnt:
     DPRINT  "OpenAudioCore=%lx"
     move.l  d0,psb_TntCore(a5)
     beq     .x
+    move.l  #"SID1",d0
+    jsr     _LVOOpenAudioCore(a6)
+    DPRINT  "OpenAudioCore2=%lx"
+    move.l  d0,psb_TntCore2(a5)
 .ok
     moveq   #1,d0   * ok
 .x
@@ -5837,18 +5893,30 @@ openTnt:
     rts
 
 trinity_select_sid:
+    DPRINT  "trinity_select_sid, default 6510"
     movem.l d0-a6,-(sp)
     move.l  a6,a5
-    move.l  psb_TntCore(a5),d0
-    beq.b   .x
-    move.l  d0,a0
     move.l  psb_TntBase(a5),a6
-    moveq   #0,d0      * clear core bit 7 -> 6510
+
+    moveq   #0,d5      * clear core bit 7 -> 6510
     cmp     #%10,psb_HeaderChipVersion(a5)  * base access
     bne.b   .1
-    move.w  #1<<7,d0   * set core bit 7 -> 8580
-.1  jsr     _LVOWriteCoreBits(a6)
-.x  movem.l (sp)+,d0-a6
+    move.w  #1<<7,d5   * set core bit 7 -> 8580
+    DPRINT  "8580"
+.1
+    move.l  psb_TntCore(a5),d0
+    beq.b   .2
+    move.l  d0,a0
+    move.l  d5,d0
+    jsr     _LVOWriteCoreBits(a6)
+.2
+    move.l  psb_TntCore2(a5),d0
+    beq.b   .3
+    move.l  d0,a0
+    move.l  d5,d0
+    jsr     _LVOWriteCoreBits(a6)
+.3
+    movem.l (sp)+,d0-a6
     rts
 
 stop_trinity:
@@ -5863,6 +5931,12 @@ closeTnt:
     move.l  d0,a0
     jsr     _LVOCloseAudioCore(a6)
 .y
+    move.l  psb_TntCore2(a5),d0
+    beq.b   .yy
+    clr.l   psb_TntCore2(a5)
+    move.l  d0,a0
+    jsr     _LVOCloseAudioCore(a6)
+.yy
     clr.l   psb_TntBase(a5)
     move.l  a6,a1
     move.l  4.w,a6

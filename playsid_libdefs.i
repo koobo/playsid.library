@@ -213,6 +213,7 @@ FREE		MACRO
     UWORD   psb_Envelope9
     APTR    psb_TntBase
     APTR    psb_TntCore
+    APTR    psb_TntCore2
     UWORD   psb_TntVol
 	LABEL	psb_SIZEOF
 
