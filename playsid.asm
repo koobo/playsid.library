@@ -5797,6 +5797,14 @@ write_trinity_reg:
 
     movem.l d0-a6,-(sp)
 	move.l	_PlaySidBase,a2
+
+    tst.w   psb_Sid2Address(a2)    
+    bne.b   .2nd
+    * This is 1SID, poke the 2nd core if available
+    add.b   #$20,d7     * offset conversion 
+    bsr.b   .2
+    sub.b   #$20,d7
+.2nd
     move.l  psb_TntCore(a2),a0
     move.l  psb_TntBase(a2),a6
 
@@ -5827,7 +5835,7 @@ write_trinity_reg:
     movem.l d0-a6,-(sp)
 	move.l	_PlaySidBase,a2
     move.l  psb_TntCore2(a2),d0
-    beq     .xx
+    beq.b   .xx
     move.l  d0,a0
     move.l  psb_TntBase(a2),a6
 
