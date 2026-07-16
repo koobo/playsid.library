@@ -125,8 +125,8 @@ Trinity
 -------
 
 The Trinity accelerator SID audio core can be used for sound output.
-Ensure your card has the correct firmware.
-Digisamples will not be heard. 
+Both single and dual SID cores are supported, for SID and 2SID playback.
+Ensure your card has the correct firmware. Digisamples will not be heard. 
 
 
 Changelog
